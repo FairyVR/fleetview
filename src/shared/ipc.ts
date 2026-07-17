@@ -1,0 +1,85 @@
+import type {
+  ApiKeyRecord,
+  ApiRequestArgs,
+  ApiResponse,
+  KeyHealth,
+  PermissionSet,
+  RequestLogEntry,
+  LeConfig,
+  Preset,
+  LibraryBundle
+} from './models'
+
+/** IPC channel names. Single source of truth for main + preload. */
+export const CHANNELS = {
+  settingsGet: 'settings:get',
+  settingsSet: 'settings:set',
+  keysList: 'keys:list',
+  keysAdd: 'keys:add',
+  keysRename: 'keys:rename',
+  keysRemove: 'keys:remove',
+  keysSetActive: 'keys:setActive',
+  keysGetActive: 'keys:getActive',
+  keysTest: 'keys:test',
+  keysDiscover: 'keys:discoverPermissions',
+  keysGetPermissions: 'keys:getPermissions',
+  apiRequest: 'api:request',
+  logsGet: 'logs:get',
+  logsClear: 'logs:clear',
+  logEntryEvent: 'logs:entry',
+  leList: 'library:leList',
+  leSave: 'library:leSave',
+  leDelete: 'library:leDelete',
+  leDuplicate: 'library:leDuplicate',
+  presetList: 'library:presetList',
+  presetSave: 'library:presetSave',
+  presetDelete: 'library:presetDelete',
+  bundleExport: 'library:bundleExport',
+  bundleImport: 'library:bundleImport',
+  secureAvailable: 'system:secureAvailable'
+} as const
+
+export interface AppSettings {
+  baseUrl: string
+  activeKeyId: string | null
+  requestTimeoutMs: number
+  maxRetries: number
+  theme: 'dark' | 'light'
+  developerMode: boolean
+}
+
+/** The typed surface exposed to the renderer as `window.api`. */
+export interface FleetViewApi {
+  getSettings(): Promise<AppSettings>
+  setSettings(patch: Partial<AppSettings>): Promise<AppSettings>
+
+  listKeys(): Promise<ApiKeyRecord[]>
+  addKey(input: { name: string; owner?: string; secret: string }): Promise<ApiKeyRecord>
+  renameKey(keyId: string, name: string, owner?: string): Promise<void>
+  removeKey(keyId: string): Promise<void>
+  setActiveKey(keyId: string | null): Promise<void>
+  getActiveKeyId(): Promise<string | null>
+  testKey(keyId: string): Promise<{ health: KeyHealth; message: string }>
+  discoverPermissions(keyId: string): Promise<PermissionSet>
+  getPermissions(keyId: string): Promise<PermissionSet>
+
+  request<T = unknown>(args: ApiRequestArgs): Promise<ApiResponse<T>>
+
+  getLogs(): Promise<RequestLogEntry[]>
+  clearLogs(): Promise<void>
+  onLog(cb: (entry: RequestLogEntry) => void): () => void
+
+  listLeConfigs(): Promise<LeConfig[]>
+  saveLeConfig(input: Partial<LeConfig> & { name: string; code: string }): Promise<LeConfig>
+  deleteLeConfig(id: string): Promise<void>
+  duplicateLeConfig(id: string): Promise<LeConfig | null>
+
+  listPresets(): Promise<Preset[]>
+  savePreset(input: Partial<Preset> & { kind: Preset['kind']; name: string; data: unknown }): Promise<Preset>
+  deletePreset(id: string): Promise<void>
+
+  exportBundle(): Promise<LibraryBundle>
+  importBundle(bundle: LibraryBundle): Promise<{ leConfigs: number; presets: number }>
+
+  isSecureStorageAvailable(): Promise<boolean>
+}
