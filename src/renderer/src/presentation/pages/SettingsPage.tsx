@@ -1,0 +1,91 @@
+import { useState } from 'react'
+import { Save } from 'lucide-react'
+import { useAppStore } from '../../state/useAppStore'
+import { PageHeader, Card, Button, Field, Badge } from '../components/ui'
+
+export default function SettingsPage() {
+  const { settings, updateSettings } = useAppStore()
+  const [draft, setDraft] = useState(settings)
+  const [saved, setSaved] = useState(false)
+  if (!draft) return null
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(settings)
+
+  async function save() {
+    if (!draft) return
+    await updateSettings(draft)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+  }
+
+  return (
+    <div className="max-w-2xl">
+      <PageHeader
+        title="Settings"
+        subtitle="Connection and request behavior for the API client."
+        actions={
+          <Button variant="primary" disabled={!dirty} onClick={() => void save()}>
+            <Save size={15} /> {saved ? 'Saved' : 'Save'}
+          </Button>
+        }
+      />
+
+      <Card className="grid gap-4">
+        <Field label="API base URL">
+          <input
+            className="input mono"
+            value={draft.baseUrl}
+            onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })}
+            placeholder="https://api.orion-drift…"
+          />
+          {draft.baseUrl.includes('example') && (
+            <span className="text-[12px] text-[var(--warn)] mt-1.5 inline-block">
+              This is a placeholder host. Set the real, verified Orion Drift API base URL for
+              requests to succeed.
+            </span>
+          )}
+        </Field>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Request timeout (ms)">
+            <input
+              className="input"
+              type="number"
+              value={draft.requestTimeoutMs}
+              onChange={(e) => setDraft({ ...draft, requestTimeoutMs: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Max retries">
+            <input
+              className="input"
+              type="number"
+              value={draft.maxRetries}
+              onChange={(e) => setDraft({ ...draft, maxRetries: Number(e.target.value) })}
+            />
+          </Field>
+        </div>
+
+        <Field label="Theme">
+          <select
+            className="input"
+            value={draft.theme}
+            onChange={(e) => setDraft({ ...draft, theme: e.target.value as 'dark' | 'light' })}
+          >
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </Field>
+
+        <label className="flex items-center gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={draft.developerMode}
+            onChange={(e) => setDraft({ ...draft, developerMode: e.target.checked })}
+          />
+          <span className="text-[13px]">Developer mode</span>
+          <Badge>verbose logging, raw payloads</Badge>
+        </label>
+      </Card>
+    </div>
+  )
+}

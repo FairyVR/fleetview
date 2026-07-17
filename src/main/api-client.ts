@@ -93,6 +93,7 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
     endpointName: endpoint?.name ?? args.endpointId,
     method: endpoint?.method ?? 'GET',
     url: '',
+    params: args.params,
     requestHeaders: {},
     requestBody: args.body ?? null,
     responseStatus: null,

@@ -56,6 +56,8 @@ export interface RequestLogEntry {
   endpointName: string
   method: HttpMethod
   url: string
+  /** Params used to build the URL, retained so Dev Mode can replay the request. */
+  params?: Record<string, string | number | boolean>
   /** Header names/values are sanitized — Authorization is shown as "Bearer ***". */
   requestHeaders: Record<string, string>
   requestBody: unknown

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { ApiKeyRecord, KeyHealth, PermissionSet } from '@shared/models'
 import { EMPTY_PERMISSIONS } from '@shared/models'
-import { keysStore, secretsStore, permissionsStore, settingsStore } from './stores'
+import { keysStore, permissionsStore, settingsStore } from './stores'
 import { saveSecret, deleteSecret } from './secure-storage'
 import { executeRequest } from './api-client'
 
