@@ -85,6 +85,16 @@ export default function SettingsPage() {
           <span className="text-[13px]">Developer mode</span>
           <Badge>verbose logging, raw payloads</Badge>
         </label>
+
+        <label className="flex items-center gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={draft.showIds}
+            onChange={(e) => setDraft({ ...draft, showIds: e.target.checked })}
+          />
+          <span className="text-[13px]">Show internal IDs</span>
+          <Badge>fleet, station, and player IDs in lists</Badge>
+        </label>
       </Card>
     </div>
   )

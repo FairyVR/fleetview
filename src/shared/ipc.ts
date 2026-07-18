@@ -48,6 +48,8 @@ export interface AppSettings {
   maxRetries: number
   theme: 'dark' | 'light'
   developerMode: boolean
+  /** Show internal IDs (fleet/station/player) in lists. Off by default. */
+  showIds: boolean
 }
 
 /** The typed surface exposed to the renderer as `window.api`. */

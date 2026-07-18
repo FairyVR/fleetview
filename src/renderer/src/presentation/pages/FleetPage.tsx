@@ -34,6 +34,7 @@ export default function FleetPage() {
     auto: true
   })
   const grants = useAppStore((s) => s.permissions.grants ?? {})
+  const showIds = useAppStore((s) => s.settings?.showIds ?? false)
   const selectFleet = useSelectionStore((s) => s.selectFleet)
   const navigate = useNavigate()
 
@@ -55,9 +56,14 @@ export default function FleetPage() {
       />
       <RequestResult response={response} loading={loading} onRetry={() => void run()}>
         {(raw) => {
-          const fleets = asFleets(raw).sort(
-            (a, b) => accessScopes(b.id).length - accessScopes(a.id).length
-          )
+          // Only list fleets the key can actually work in (station:read or admin).
+          // If nothing has been discovered yet, show everything — never deny on unknown.
+          const discovered = Object.keys(grants).length > 0
+          const usable = (id: string): boolean =>
+            (grants[id] ?? []).some((s) => s === 'station:read' || s === 'admin')
+          const fleets = asFleets(raw)
+            .filter((f) => !discovered || usable(f.id))
+            .sort((a, b) => accessScopes(b.id).length - accessScopes(a.id).length)
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {fleets.map((f) => (
@@ -69,7 +75,7 @@ export default function FleetPage() {
                       </div>
                       <div>
                         <div className="font-medium">{f.name}</div>
-                        <div className="text-[11px] text-[var(--text-faint)] mono">{f.id}</div>
+                        {showIds && <div className="text-[11px] text-[var(--text-faint)] mono">{f.id}</div>}
                       </div>
                     </div>
                     <ChevronRight size={16} className="text-[var(--text-faint)]" />

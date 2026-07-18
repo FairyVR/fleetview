@@ -2,10 +2,24 @@ import { RefreshCw, Server, Users, Cpu, CheckCircle2 } from 'lucide-react'
 import type { Station } from '@shared/models'
 import { useEndpoint } from '../../services/useEndpoint'
 import { useSelectionStore } from '../../state/useSelectionStore'
+import { useAppStore } from '../../state/useAppStore'
 import { PageHeader, Card, Button, Badge, StatusDot, EmptyState } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
+
+/**
+ * The `online` flag from /v2/fleets/:id/stations is unreliable (live-verified: it reports
+ * false for stations whose last_event is seconds old). Treat a station as online unless
+ * it's disabled or genuinely silent for a while.
+ */
+function isOnline(s: Record<string, unknown>): boolean {
+  if (s.disabled === true) return false
+  if (s.online === true) return true
+  const last = typeof s.last_event === 'string' ? Date.parse(s.last_event) : NaN
+  if (!Number.isNaN(last)) return Date.now() - last < 10 * 60 * 1000
+  return true
+}
 
 function asStations(data: unknown, fleetId: string): Station[] {
   const d = data as
@@ -17,7 +31,7 @@ function asStations(data: unknown, fleetId: string): Station[] {
     fleetId,
     name: String(s.station_name ?? s.name ?? s.station_id ?? 'Unnamed station'),
     region: s.region as string | undefined,
-    status: s.online === true ? 'online' : s.online === false ? 'offline' : 'unknown',
+    status: isOnline(s) ? 'online' : 'offline',
     version: s.version as string | undefined,
     sessionId: (s.session_id ?? s.sessionId) as string | undefined,
     playerCount: (s.player_count ?? s.playerCount) as number | undefined,
@@ -27,6 +41,7 @@ function asStations(data: unknown, fleetId: string): Station[] {
 
 export default function StationPage() {
   const { fleetId, fleetName, stationId, selectStation } = useSelectionStore()
+  const showIds = useAppStore((s) => s.settings?.showIds ?? false)
   const navigate = useNavigate()
   const { response, loading, run } = useEndpoint('fleet.stations', {
     params: fleetId ? { fleetId } : undefined,
@@ -69,7 +84,7 @@ export default function StationPage() {
                       <Server size={15} className="text-[var(--accent)]" />
                       <div>
                         <div className="font-medium">{s.name}</div>
-                        <div className="text-[11px] text-[var(--text-faint)] mono">{s.id}</div>
+                        {showIds && <div className="text-[11px] text-[var(--text-faint)] mono">{s.id}</div>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">

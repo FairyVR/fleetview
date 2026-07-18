@@ -35,7 +35,8 @@ function readSettings(): AppSettings {
     requestTimeoutMs: settingsStore.get('requestTimeoutMs'),
     maxRetries: settingsStore.get('maxRetries'),
     theme: settingsStore.get('theme'),
-    developerMode: settingsStore.get('developerMode')
+    developerMode: settingsStore.get('developerMode'),
+    showIds: settingsStore.get('showIds')
   }
 }
 

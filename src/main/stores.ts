@@ -11,6 +11,7 @@ export interface Settings {
   maxRetries: number
   theme: 'dark' | 'light'
   developerMode: boolean
+  showIds: boolean
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -19,7 +20,8 @@ const DEFAULT_SETTINGS: Settings = {
   requestTimeoutMs: 15000,
   maxRetries: 2,
   theme: 'dark',
-  developerMode: false
+  developerMode: false,
+  showIds: false
 }
 
 export const settingsStore = new Store<Settings>({
