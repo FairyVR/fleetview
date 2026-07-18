@@ -5,39 +5,42 @@ import { api } from '../../lib/api'
 import { PageHeader, Card, Button, Badge, Field } from '../components/ui'
 import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
+import { BOARD_KEY_PREFIX, BOARD_NAMES, BOARD_SECTION, boardName } from '../../lib/boards'
 
-/** Fallback slot layout so the manager is usable before a live config fetch succeeds. */
-const DEFAULT_SLOTS: BoardSlot[] = Array.from({ length: 4 }, (_, i) => ({
-  key: `BoardTextureUrl${i}`,
-  name: `Board ${i}`,
+/** Named slots 0-9 always render (empty = no image yet), so the layout matches the dashboard. */
+const DEFAULT_SLOTS: BoardSlot[] = BOARD_NAMES.map((b, i) => ({
+  key: `${BOARD_KEY_PREFIX}${i}`,
+  name: b.name,
   textureUrl: ''
 }))
 
 /**
  * Board textures are not a separate endpoint — they are keys inside the station config
- * object (BoardTextureUrl0, BoardTextureUrl1, …). Pull every matching key out of it.
+ * at `config.stationConfig.BoardTextureUrlN` (live-verified). Merge the named slots with
+ * whatever slots the config actually has set.
  */
 function slotsFromConfig(data: unknown): BoardSlot[] {
   const d = data as Record<string, unknown> | null
-  if (!d || typeof d !== 'object') return []
+  if (!d || typeof d !== 'object') return DEFAULT_SLOTS
   // The config may be at the root or nested under `config`.
   const cfg = (typeof d.config === 'object' && d.config !== null ? d.config : d) as Record<string, unknown>
-  const slots = Object.entries(cfg)
-    .filter(([k, v]) => /^BoardTextureUrl/i.test(k) && (typeof v === 'string' || v == null))
-    .map(([k, v]) => ({
-      key: k,
-      name: k.replace(/^BoardTextureUrl/i, 'Board ') || k,
-      textureUrl: typeof v === 'string' ? v : ''
-    }))
-  return slots.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }))
+  const byKey = new Map(DEFAULT_SLOTS.map((s) => [s.key, { ...s }]))
+  for (const [k, v] of Object.entries(cfg)) {
+    if (!k.startsWith(BOARD_KEY_PREFIX) || (typeof v !== 'string' && v != null)) continue
+    const slot = Number(k.slice(BOARD_KEY_PREFIX.length))
+    byKey.set(k, { key: k, name: boardName(slot).name, textureUrl: typeof v === 'string' ? v : '' })
+  }
+  return [...byKey.values()].sort((a, b) => slotNumber(a.key) - slotNumber(b.key))
 }
+
+const slotNumber = (key: string): number => Number(key.slice(BOARD_KEY_PREFIX.length)) || 0
 
 export default function BoardManagerPage() {
   return (
     <div>
       <PageHeader
         title="Board Manager"
-        subtitle="Manage every BoardTextureUrl slot on a station. Edit the URL, preview live before saving, then apply."
+        subtitle={`${BOARD_SECTION} for the selected station only. Edit a board's image URL, preview it live, then apply.`}
       />
       <StationScoped>{(stationId) => <BoardEditor stationId={stationId} />}</StationScoped>
     </div>
@@ -98,7 +101,7 @@ function BoardEditor({ stationId }: { stationId: string }) {
         <Button onClick={() => void load()} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reload
         </Button>
-        <PermissionGate scope="custom_config:write">
+        <PermissionGate scope="station_config:write">
           <Button variant="primary" disabled={!dirty} onClick={() => void saveAll()}>
             <Save size={14} /> Save all
           </Button>
@@ -112,8 +115,15 @@ function BoardEditor({ stationId }: { stationId: string }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ImageIcon size={15} className="text-[var(--accent)]" />
-                <span className="font-medium">{slot.name}</span>
-                <Badge>{slot.key}</Badge>
+                <div>
+                  <span className="font-medium">{slot.name}</span>
+                  {boardName(slotNumber(slot.key)).alt && (
+                    <div className="text-[11px] text-[var(--text-faint)]">
+                      {boardName(slotNumber(slot.key)).alt}
+                    </div>
+                  )}
+                </div>
+                <Badge>#{slotNumber(slot.key)}</Badge>
               </div>
               {savedKey === slot.key && <Badge tone="good"><Check size={11} /> applied</Badge>}
             </div>
@@ -143,7 +153,7 @@ function BoardEditor({ stationId }: { stationId: string }) {
             </Field>
 
             <div className="flex gap-2">
-              <PermissionGate scope="custom_config:write">
+              <PermissionGate scope="station_config:write">
                 <Button variant="primary" onClick={() => void apply(slot)}>
                   <Upload size={13} /> Apply
                 </Button>
