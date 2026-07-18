@@ -48,17 +48,42 @@ export default function KeysPage() {
   const [testWrite, setTestWrite] = useState(false)
   const [running, setRunning] = useState(false)
   const [results, setResults] = useState<FleetProbeResult[] | null>(null)
+  const [loadingFleets, setLoadingFleets] = useState(false)
+  const [verifyErr, setVerifyErr] = useState<string | null>(null)
 
   async function openVerify(id: string) {
     setVerifyKey(id)
     setResults(null)
     setTestWrite(false)
     setFleets([])
-    let perms = await api.getPermissions(id)
-    if (!Object.keys(perms.grants ?? {}).length) perms = await api.discoverPermissions(id)
-    const opts = fleetOptions(perms)
-    setFleets(opts)
-    setSelFleet(opts[0]?.id ?? '')
+    setVerifyErr(null)
+    setLoadingFleets(true)
+    try {
+      let perms = await api.getPermissions(id)
+      if (!Object.keys(perms.grants ?? {}).length) perms = await api.discoverPermissions(id)
+      let opts = fleetOptions(perms)
+      if (!opts.length) {
+        // Discovery came back empty — ask the API for the fleet list directly.
+        const res = await api.request({
+          endpointId: 'fleet.list',
+          keyId: id,
+          params: { include_stations: false, page_size: 32, page: 1 }
+        })
+        const items = (res.data as { items?: unknown[] } | null)?.items
+        opts = (Array.isArray(items) ? items : [])
+          .map((f) => f as Record<string, unknown>)
+          .filter((f) => typeof f.fleet_id === 'string')
+          .map((f) => ({ id: f.fleet_id as string, name: (f.fleet_name as string) ?? (f.fleet_id as string) }))
+        if (!res.ok) setVerifyErr(res.error?.message ?? `HTTP ${res.status}`)
+        else if (!opts.length) setVerifyErr('The API returned no fleets for this key.')
+      }
+      setFleets(opts)
+      setSelFleet(opts[0]?.id ?? '')
+    } catch (e) {
+      setVerifyErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoadingFleets(false)
+    }
   }
 
   async function runVerify() {
@@ -233,8 +258,12 @@ export default function KeysPage() {
         }
       >
         <div className="grid gap-3">
-          {fleets.length === 0 ? (
+          {loadingFleets ? (
             <div className="text-[13px] text-[var(--text-dim)]">Loading fleets this key can see…</div>
+          ) : fleets.length === 0 ? (
+            <div className="text-[13px] text-[var(--warn,orange)]">
+              {verifyErr ?? 'This key can’t see any fleets.'}
+            </div>
           ) : (
             <Field label="Fleet">
               <select className="input" value={selFleet} onChange={(e) => setSelFleet(e.target.value)}>
