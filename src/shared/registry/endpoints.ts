@@ -39,11 +39,24 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'fleet:read',
     responseExample: {
+      page: { total_items: 48, item_count: 16, page_size: 32, page: 1, pages: 2 },
       items: [
         {
-          fleet_id: 'flt_1',
+          fleet_id: '8a976a05-…',
           fleet_name: 'Strike',
-          stations: [{ station_id: 'stn_1', station_name: 'Station One', online: true }]
+          created: '2023-12-14T00:51:28Z',
+          config: null,
+          stations: [
+            {
+              station_id: '4efcd465-…',
+              station_name: '63D2_Phoebe_Equinox',
+              region: 'eu-central-1',
+              online: true,
+              player_count: 3,
+              version: '65289',
+              session_id: 'ORCHESTRATOR-…'
+            }
+          ]
         }
       ]
     },
@@ -339,7 +352,10 @@ export const endpoints: EndpointDef[] = [
       last_login: '2026-07-01T00:00:00Z',
       banned: false
     },
-    status: 'verified'
+    statusCodes: { 200: 'OK', 401: 'Invalid Permissions — needs GLOBAL user_data:read' },
+    status: 'verified',
+    notes:
+      'Requires the global user_data:read scope (fleet-level user_data:read is not enough); the 401 body names the missing scope.'
   },
   {
     id: 'player.search',
@@ -423,6 +439,21 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'user_data:read',
     fleetScoped: true,
+    responseExample: {
+      bans: [
+        {
+          ban_id: '3602fd75-…',
+          user_id: '6807043526078982',
+          username: 'SomePlayer',
+          fleet_id: '6c9d1fe1-…',
+          timestamp: '2026-06-08T01:40:29Z',
+          expiration: null,
+          reason: 'username',
+          revoked: false,
+          created_by: '24057280…'
+        }
+      ]
+    },
     status: 'verified'
   },
   {
@@ -502,6 +533,19 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'server_event:read',
     stationScoped: true,
+    responseExample: {
+      page: { total_items: 0, item_count: 500, page_size: 500, page: 1, pages: 0 },
+      items: [
+        {
+          idx: 548586423,
+          event_type: 'state',
+          station_id: 'bc6ad526-…',
+          event_data: '{"players": [...], "districtPopulations": {...}}',
+          timestamp: '2026-07-18T16:31:00Z'
+        }
+      ]
+    },
+    notes: '`event_data` is a JSON string — parse it client-side.',
     status: 'verified'
   },
 

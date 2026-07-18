@@ -196,6 +196,11 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
         const name = typeof b.error_name === 'string' ? b.error_name : undefined
         const serverMsg = [name, detail].filter(Boolean).join(': ')
         if (serverMsg) statusErr.message = serverMsg
+        // The live API reports missing scopes as 401 "Invalid Permissions" (with the exact
+        // scope in `detail`), NOT 403 — without this the UI would claim the key expired.
+        if (res.status === 401 && name === 'Invalid Permissions') {
+          statusErr.kind = 'permission-denied'
+        }
       }
 
       if (statusErr && RETRYABLE_STATUS.has(res.status) && retries < maxRetries) {

@@ -1,6 +1,6 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T15:52:26.703Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T16:34:11.580Z._
 
 **31** endpoints registered · **22** verified · **9** unverified.
 
@@ -64,15 +64,28 @@ All fleets the authenticated key can access (used to validate a key).
 
   ```json
   {
+    "page": {
+      "total_items": 48,
+      "item_count": 16,
+      "page_size": 32,
+      "page": 1,
+      "pages": 2
+    },
     "items": [
       {
-        "fleet_id": "flt_1",
+        "fleet_id": "8a976a05-…",
         "fleet_name": "Strike",
+        "created": "2023-12-14T00:51:28Z",
+        "config": null,
         "stations": [
           {
-            "station_id": "stn_1",
-            "station_name": "Station One",
-            "online": true
+            "station_id": "4efcd465-…",
+            "station_name": "63D2_Phoebe_Equinox",
+            "region": "eu-central-1",
+            "online": true,
+            "player_count": 3,
+            "version": "65289",
+            "session_id": "ORCHESTRATOR-…"
           }
         ]
       }
@@ -406,6 +419,8 @@ Global player profile by id: username, account creation date, last login, ban st
     "banned": false
   }
   ```
+- **Status codes:** `200` OK, `401` Invalid Permissions — needs GLOBAL user_data:read
+- **Notes:** Requires the global user_data:read scope (fleet-level user_data:read is not enough); the 401 body names the missing scope.
 
 ### Search users (global) — `player.search`
 
@@ -488,6 +503,25 @@ All bans issued in a fleet.
   - `fleetId` (path) — required — e.g. `flt_1`
   - `include_revoked` (query) — e.g. `true`
   - `include_expired` (query) — e.g. `true`
+- **Example response:**
+
+  ```json
+  {
+    "bans": [
+      {
+        "ban_id": "3602fd75-…",
+        "user_id": "6807043526078982",
+        "username": "SomePlayer",
+        "fleet_id": "6c9d1fe1-…",
+        "timestamp": "2026-06-08T01:40:29Z",
+        "expiration": null,
+        "reason": "username",
+        "revoked": false,
+        "created_by": "24057280…"
+      }
+    ]
+  }
+  ```
 
 ### Ban user — `moderation.ban`
 
@@ -561,6 +595,29 @@ Recent server events for a single station (polled).
 - **Station-scoped**
 - **Parameters:**
   - `stationId` (path) — required — e.g. `stn_1`
+- **Example response:**
+
+  ```json
+  {
+    "page": {
+      "total_items": 0,
+      "item_count": 500,
+      "page_size": 500,
+      "page": 1,
+      "pages": 0
+    },
+    "items": [
+      {
+        "idx": 548586423,
+        "event_type": "state",
+        "station_id": "bc6ad526-…",
+        "event_data": "{\"players\": [...], \"districtPopulations\": {...}}",
+        "timestamp": "2026-07-18T16:31:00Z"
+      }
+    ]
+  }
+  ```
+- **Notes:** `event_data` is a JSON string — parse it client-side.
 
 ## events
 

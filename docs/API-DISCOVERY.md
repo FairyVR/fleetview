@@ -87,6 +87,18 @@ the registry as `unverified`): `/fleets/{fleet_id}` (root fleet info),
 `/fleets/{fleet_id}/players`, `/fleets/{fleet_id}/roles`,
 `/stations/{station_id}/match_history` (the dashboard aggregates `server_events` instead).
 
+Two more live findings (2026-07-18, verified with a real Service Key):
+
+- **Missing scopes come back as `401`, not 403**, with
+  `{"error_name":"Invalid Permissions","detail":"You need the <scope> permission on fleet <id> …"}`
+  — the body names the exact missing scope. The API client maps this to `permission-denied`
+  (a plain 401 without that error_name still means bad/expired key).
+- **The fleet list shows more fleets than the key can use.** It returns every *visible*
+  fleet (16 for the test key); per-fleet reads succeeded on only 2 of them. Listing ≠ access,
+  which is why probing is per fleet.
+- Bans use `timestamp`/`expiration` (ISO strings, `expiration: null` = permanent);
+  server events wrap `event_data` as a JSON string with an ISO `timestamp`.
+
 Service Keys get **no scope lists back** from any endpoint. Discovery therefore records the
 fleets the list returns and *probes* two cheap reads per fleet (stations, bans); the result
 is stored with `source: 'probed'` and is **advisory only** — probes can't see write scopes,

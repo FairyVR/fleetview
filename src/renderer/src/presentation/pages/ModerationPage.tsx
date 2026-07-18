@@ -7,25 +7,7 @@ import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { ts } from '../../lib/format'
-
-interface Ban {
-  id: string
-  userId: string
-  reason: string
-  bannedAt: number
-  expiresAt?: number
-}
-
-function asBans(data: unknown): Ban[] {
-  const arr = Array.isArray(data) ? data : (data as { bans?: unknown[] })?.bans ?? (data as { items?: unknown[] })?.items ?? []
-  return (arr as Record<string, unknown>[]).map((b) => ({
-    id: String(b.ban_id ?? b.id ?? ''),
-    userId: String(b.user_id ?? b.userId ?? ''),
-    reason: String(b.reason ?? ''),
-    bannedAt: Number(b.banned_at ?? b.bannedAt ?? 0),
-    expiresAt: (b.expires_at ?? b.expiresAt) as number | undefined
-  }))
-}
+import { asBans } from '../../lib/bans'
 
 export default function ModerationPage() {
   return (

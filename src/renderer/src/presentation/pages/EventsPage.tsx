@@ -7,17 +7,33 @@ import { RequestResult } from '../components/RequestResult'
 import { StationScoped } from '../components/StationScoped'
 import { ts } from '../../lib/format'
 
+/**
+ * Live shape: { page, items: [{ idx, event_type, station_id, event_data, timestamp }] }
+ * where `event_data` is a JSON *string* and `timestamp` is an ISO date string.
+ */
 function asEvents(data: unknown): ServerEvent[] {
-  const arr = Array.isArray(data) ? data : (data as { events?: unknown[] })?.events ?? []
-  return (arr as Record<string, unknown>[]).map((e) => ({
-    id: String(e.id ?? e.eventId ?? ''),
-    timestamp: Number(e.timestamp ?? 0),
-    type: String(e.type ?? 'unknown'),
-    stationId: e.stationId as string | undefined,
-    message: e.message as string | undefined,
-    data: (e.data as Record<string, unknown>) ?? {},
-    raw: e
-  }))
+  const d = data as { items?: unknown[]; events?: unknown[] } | unknown[]
+  const arr = Array.isArray(d) ? d : (d?.items ?? d?.events ?? [])
+  return (arr as Record<string, unknown>[]).map((e) => {
+    let parsed: Record<string, unknown> | undefined
+    if (typeof e.event_data === 'string') {
+      try {
+        parsed = JSON.parse(e.event_data)
+      } catch {
+        parsed = { _raw: e.event_data }
+      }
+    }
+    const t = typeof e.timestamp === 'string' ? Date.parse(e.timestamp) : Number(e.timestamp ?? 0)
+    return {
+      id: String(e.idx ?? e.id ?? e.eventId ?? ''),
+      timestamp: Number.isNaN(t) ? 0 : t,
+      type: String(e.event_type ?? e.type ?? 'unknown'),
+      stationId: (e.station_id ?? e.stationId) as string | undefined,
+      message: e.message as string | undefined,
+      data: parsed ?? ((e.data as Record<string, unknown>) ?? {}),
+      raw: e
+    }
+  })
 }
 
 export default function EventsPage() {
