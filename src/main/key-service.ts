@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import type { ApiKeyRecord, KeyHealth, PermissionSet } from '@shared/models'
-import { EMPTY_PERMISSIONS, parseGrants } from '@shared/models'
+import type { ApiKeyRecord, KeyHealth, PermissionSet, FleetProbeResult } from '@shared/models'
+import { EMPTY_PERMISSIONS, parseGrants, mergeProbedScopes } from '@shared/models'
 import { keysStore, permissionsStore, settingsStore } from './stores'
 import { saveSecret, deleteSecret, readSecret, looksLikeJwt } from './secure-storage'
 import { executeRequest } from './api-client'
@@ -110,8 +110,9 @@ export async function testKey(keyId: string): Promise<{ health: KeyHealth; messa
   let health: KeyHealth
   let message: string
   if (res.ok) {
+    const n = extractFleets(res.data).length
     health = 'valid'
-    message = 'Key authenticated successfully.'
+    message = `Key authenticated · sees ${n} fleet${n === 1 ? '' : 's'}.`
   } else if (res.error?.kind === 'auth-expired') {
     health = 'invalid'
     message = res.error.message
@@ -169,6 +170,14 @@ export async function discoverPermissions(keyId: string): Promise<PermissionSet>
         })
       )
     )
+    // Keep scopes confirmed by earlier deep verification (verifyFleetAccess) — this cheap
+    // 2-probe pass must widen knowledge, never erase it. Fleets gone from the list drop out.
+    const prev = store[keyId]
+    if (prev && prev.source !== 'explicit') {
+      for (const [fid, scopes] of Object.entries(prev.grants ?? {})) {
+        if (grants[fid]) grants[fid] = [...new Set([...grants[fid], ...scopes])]
+      }
+    }
     perms = { grants, raw: res.data, discoveredAt: Date.now(), source: 'probed' }
   } else {
     // Nothing parseable — stay unknown; never persist an empty "discovered" set.
@@ -177,7 +186,12 @@ export async function discoverPermissions(keyId: string): Promise<PermissionSet>
 
   store[keyId] = perms
   permissionsStore.set('perms', store)
+  summarizeKey(keyId, perms, stationIds)
+  return perms
+}
 
+/** Refresh the key card's human-readable summary from its grant set. */
+function summarizeKey(keyId: string, perms: PermissionSet, stationIds: string[]): void {
   const grantedFleets = Object.keys(perms.grants)
   const allScopes = new Set(Object.values(perms.grants).flat())
   patchKey(keyId, {
@@ -189,7 +203,71 @@ export async function discoverPermissions(keyId: string): Promise<PermissionSet>
     fleetAccess: grantedFleets,
     stationAccess: stationIds
   })
-  return perms
+}
+
+/** Every verified fleet-scoped read endpoint, probeable without side effects. */
+const FLEET_PROBES: Array<{ endpointId: string; scope: string }> = [
+  { endpointId: 'fleet.stations', scope: 'station:read' },
+  { endpointId: 'moderation.bans', scope: 'user_data:read' },
+  { endpointId: 'fleet.config.get', scope: 'fleet_config:read' },
+  { endpointId: 'reports.list', scope: 'fleet_report:read' },
+  { endpointId: 'events.fleet', scope: 'server_event:read' }
+]
+
+/**
+ * Deep-verify one fleet: probe every verified read endpoint, optionally confirm write
+ * access by re-POSTing the fleet's current config unchanged (a payload no-op — the only
+ * safe write probe). Confirmed scopes are merged into the key's stored grants so gates
+ * and badges light up; failures are reported but never revoke anything.
+ */
+export async function verifyFleetAccess(
+  keyId: string,
+  fleetId: string,
+  testWrite = false
+): Promise<FleetProbeResult[]> {
+  let configData: unknown = null
+  const results: FleetProbeResult[] = await Promise.all(
+    FLEET_PROBES.map(async ({ endpointId, scope }) => {
+      const r = await executeRequest({ endpointId, keyId, params: { fleetId } })
+      if (endpointId === 'fleet.config.get' && r.ok) configData = r.data
+      return { scope, endpointId, ok: r.ok, status: r.status, message: r.error?.message }
+    })
+  )
+
+  if (testWrite) {
+    if (configData && typeof configData === 'object') {
+      const w = await executeRequest({
+        endpointId: 'fleet.config.set',
+        keyId,
+        params: { fleetId },
+        body: configData
+      })
+      results.push({
+        scope: 'fleet_config:write',
+        endpointId: 'fleet.config.set',
+        ok: w.ok,
+        status: w.status,
+        message: w.error?.message
+      })
+    } else {
+      results.push({
+        scope: 'fleet_config:write',
+        endpointId: 'fleet.config.set',
+        ok: false,
+        status: 0,
+        message: 'Skipped — could not read the current config to re-save.'
+      })
+    }
+  }
+
+  const confirmed = ['fleet:read', ...results.filter((r) => r.ok).map((r) => r.scope)]
+  const store = permissionsStore.get('perms')
+  const merged = mergeProbedScopes(store[keyId], fleetId, confirmed)
+  store[keyId] = merged
+  permissionsStore.set('perms', store)
+  const key = keysStore.get('keys').find((k) => k.id === keyId)
+  summarizeKey(keyId, merged, key?.stationAccess ?? [])
+  return results
 }
 
 export function getPermissions(keyId: string): PermissionSet {

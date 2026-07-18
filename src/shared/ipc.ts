@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   KeyHealth,
   PermissionSet,
+  FleetProbeResult,
   RequestLogEntry,
   LeConfig,
   Preset,
@@ -23,6 +24,7 @@ export const CHANNELS = {
   keysTest: 'keys:test',
   keysDiscover: 'keys:discoverPermissions',
   keysGetPermissions: 'keys:getPermissions',
+  keysVerifyFleet: 'keys:verifyFleet',
   apiRequest: 'api:request',
   logsGet: 'logs:get',
   logsClear: 'logs:clear',
@@ -62,6 +64,7 @@ export interface FleetViewApi {
   testKey(keyId: string): Promise<{ health: KeyHealth; message: string }>
   discoverPermissions(keyId: string): Promise<PermissionSet>
   getPermissions(keyId: string): Promise<PermissionSet>
+  verifyFleetAccess(keyId: string, fleetId: string, testWrite?: boolean): Promise<FleetProbeResult[]>
 
   request<T = unknown>(args: ApiRequestArgs): Promise<ApiResponse<T>>
 

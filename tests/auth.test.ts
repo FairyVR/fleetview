@@ -4,6 +4,7 @@ import {
   fleetHasScope,
   isDiscovered,
   parseGrants,
+  mergeProbedScopes,
   EMPTY_PERMISSIONS
 } from '../src/shared/models/auth'
 import type { PermissionSet } from '../src/shared/models/auth'
@@ -74,6 +75,33 @@ describe('probed permission sets (advisory only)', () => {
     expect(mayDeny({ ...probed, source: 'explicit' })).toBe(true)
     // legacy persisted sets without a source must not deny either
     expect(mayDeny({ grants: { A: ['fleet:read'] }, discoveredAt: 1 })).toBe(false)
+  })
+})
+
+describe('mergeProbedScopes', () => {
+  it('widens one fleet without touching others and dedupes', () => {
+    const prev: PermissionSet = {
+      grants: { A: ['fleet:read', 'station:read'], B: ['fleet:read'] },
+      discoveredAt: 1,
+      source: 'probed'
+    }
+    const merged = mergeProbedScopes(prev, 'A', ['fleet:read', 'fleet_config:write'])
+    expect(merged.grants.A.sort()).toEqual(['fleet:read', 'fleet_config:write', 'station:read'].sort())
+    expect(merged.grants.B).toEqual(['fleet:read'])
+    expect(merged.source).toBe('probed')
+    expect(merged.discoveredAt).toBeGreaterThan(1)
+  })
+
+  it('starts from empty/undefined and adds the fleet', () => {
+    const merged = mergeProbedScopes(undefined, 'F', ['fleet:read'])
+    expect(merged.grants).toEqual({ F: ['fleet:read'] })
+    expect(merged.source).toBe('probed')
+    expect(isDiscovered(merged)).toBe(true)
+  })
+
+  it('preserves an explicit source (never downgrades deniability rules)', () => {
+    const prev: PermissionSet = { grants: { A: ['fleet:read'] }, discoveredAt: 1, source: 'explicit' }
+    expect(mergeProbedScopes(prev, 'A', ['station:read']).source).toBe('explicit')
   })
 })
 

@@ -47,6 +47,35 @@ export const EMPTY_PERMISSIONS: PermissionSet = {
   discoveredAt: 0
 }
 
+/** Outcome of one endpoint probe in the per-fleet verification battery. */
+export interface FleetProbeResult {
+  scope: string
+  endpointId: string
+  ok: boolean
+  status: number
+  message?: string
+}
+
+/**
+ * Merge newly confirmed scopes for one fleet into an existing set. Only ever widens
+ * grants (probes confirm, never revoke); an 'explicit' source is preserved, anything
+ * else becomes 'probed'.
+ */
+export function mergeProbedScopes(
+  prev: PermissionSet | undefined,
+  fleetId: string,
+  scopes: string[]
+): PermissionSet {
+  const grants = { ...(prev?.grants ?? {}) }
+  grants[fleetId] = [...new Set([...(grants[fleetId] ?? []), ...scopes])]
+  return {
+    ...(prev ?? EMPTY_PERMISSIONS),
+    grants,
+    discoveredAt: Date.now(),
+    source: prev?.source === 'explicit' ? 'explicit' : 'probed'
+  }
+}
+
 /** True when this fleet's scope list satisfies `scope` ("admin" grants everything). */
 export function fleetHasScope(scopes: string[], scope: string): boolean {
   return scopes.includes('admin') || scopes.includes(scope)

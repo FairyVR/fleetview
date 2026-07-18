@@ -15,6 +15,8 @@ const api: FleetViewApi = {
   testKey: (keyId) => ipcRenderer.invoke(CHANNELS.keysTest, keyId),
   discoverPermissions: (keyId) => ipcRenderer.invoke(CHANNELS.keysDiscover, keyId),
   getPermissions: (keyId) => ipcRenderer.invoke(CHANNELS.keysGetPermissions, keyId),
+  verifyFleetAccess: (keyId, fleetId, testWrite) =>
+    ipcRenderer.invoke(CHANNELS.keysVerifyFleet, keyId, fleetId, testWrite),
 
   request: (args) => ipcRenderer.invoke(CHANNELS.apiRequest, args),
 

@@ -13,7 +13,8 @@ import {
   getActiveKeyId,
   testKey,
   discoverPermissions,
-  getPermissions
+  getPermissions,
+  verifyFleetAccess
 } from './key-service'
 import {
   listLeConfigs,
@@ -58,6 +59,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   h(CHANNELS.keysTest, (_e, keyId: string) => testKey(keyId))
   h(CHANNELS.keysDiscover, (_e, keyId: string) => discoverPermissions(keyId))
   h(CHANNELS.keysGetPermissions, (_e, keyId: string) => getPermissions(keyId))
+  h(CHANNELS.keysVerifyFleet, (_e, keyId: string, fleetId: string, testWrite?: boolean) =>
+    verifyFleetAccess(keyId, fleetId, testWrite)
+  )
 
   // API execution
   h(CHANNELS.apiRequest, (_e, args) => executeRequest(args))
