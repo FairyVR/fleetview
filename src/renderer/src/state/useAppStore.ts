@@ -72,6 +72,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (scope === 'none') return 'allowed'
     // No successfully-parsed grants -> unknown; never deny on unknown.
     if (!isDiscovered(perms)) return 'unknown'
-    return hasScope(perms, scope) ? 'allowed' : 'denied'
+    if (hasScope(perms, scope)) return 'allowed'
+    // Probed grants come from read-only probes and can't see write scopes —
+    // absence proves nothing, so only explicit scope lists may deny.
+    return perms.source === 'explicit' ? 'denied' : 'unknown'
   }
 }))

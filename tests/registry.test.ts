@@ -33,6 +33,21 @@ describe('buildUrl', () => {
     expect(path).toBe('/v2/stations/a%2Fb%20c')
   })
 
+  it('builds the exact fleet-list request the dashboard makes', () => {
+    const list = getEndpoint('fleet.list') as EndpointDef
+    const { path, missing } = buildUrl(list, {
+      include_config: true,
+      include_stations: true,
+      include_offline_fleets: false,
+      page_size: 32,
+      page: 1
+    })
+    expect(missing).toEqual([])
+    expect(path).toBe(
+      '/v2/fleets?include_config=true&include_stations=true&include_offline_fleets=false&page=1&page_size=32'
+    )
+  })
+
   it('substitutes multiple path params (fleet + user + role)', () => {
     const assign = getEndpoint('roles.assign') as EndpointDef
     const { path, missing } = buildUrl(assign, { fleetId: 'flt_1', userId: 'usr_1', roleId: 'rol_1' })
@@ -87,5 +102,27 @@ describe('registry integrity (real Orion Drift API)', () => {
 
   it('all endpoints require auth (the API rejects anonymous calls with 403)', () => {
     for (const e of endpoints) expect(e.requiresAuth).toBe(true)
+  })
+
+  it('carries the live-probed v2 endpoints as verified', () => {
+    for (const [id, path] of [
+      ['station.list', '/v2/stations'],
+      ['fleet.stations', '/v2/fleets/:fleetId/stations'],
+      ['user.get', '/v2/users/:userId'],
+      ['events.station', '/v2/stations/:stationId/server_events'],
+      ['station.config.get', '/v2/stations/:stationId/config'],
+      ['moderation.bans', '/v2/fleets/:fleetId/bans']
+    ]) {
+      const e = getEndpoint(id) as EndpointDef
+      expect(e, id).toBeDefined()
+      expect(e.path).toBe(path)
+      expect(e.status).toBe('verified')
+    }
+  })
+
+  it('marks paths whose v2 equivalents 404d as unverified', () => {
+    for (const id of ['fleet.get', 'fleet.update', 'roles.list', 'roles.create']) {
+      expect((getEndpoint(id) as EndpointDef).status, id).toBe('unverified')
+    }
   })
 })

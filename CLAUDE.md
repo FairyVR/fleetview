@@ -9,8 +9,12 @@ fleets/stations through a **data-driven endpoint registry**.
 - Permissions are granted **per fleet**; `admin` on a fleet = all scopes for that fleet.
   Scope names are real strings like `fleet:read`, `station_config:write`, `user_ban:revoke`.
 - No `/me`, no kick, no match-history endpoint. Stations come from
-  `GET /v1/fleets/:fleetId` → `fleet.stations[]`. Board textures + gamemode overrides are
-  keys inside `GET|POST /v2/stations/:stationId/config`.
+  `GET /v2/fleets?include_stations=true` → `items[].stations[]` or
+  `GET /v2/fleets/:fleetId/stations` (the v1 fleet-detail route is unverified — `/v2/fleets/:id`
+  404s). Board textures + gamemode overrides are keys inside
+  `GET|POST /v2/stations/:stationId/config`.
+- Keys are **Service Keys**: no scope lists ever come back, so discovery probes cheap reads
+  per fleet and stores grants with `source: 'probed'` — advisory only, never pre-flight denied.
 - Field names are snake_case (`fleet_id`, `station_name`, `role_id`, `user_id`).
 - Full details + how it was discovered: `docs/API-DISCOVERY.md`.
 

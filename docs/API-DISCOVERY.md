@@ -66,10 +66,37 @@ Cosmetic/non-API flags also appear on accounts (`key_holder*`, `global_voip`,
 "my permissions" endpoint, so FleetView leaves permissions *unknown* and lets the server be
 the authority rather than falsely blocking actions.
 
+## Live probing with a Service Key (2026-07-18)
+
+A real key (a **Service Key** — server administration/telemetry, not a user profile;
+`/v2/users/me` → 401) was used to probe the API directly. Confirmed working on `v2`:
+
+| Endpoint | Notes |
+| --- | --- |
+| `GET /v2/fleets?include_config&include_stations&include_offline_fleets&page&page_size` | The exact request the dashboard makes — one call returns fleets **with embedded stations and config**. FleetView's key test + permission discovery use it. |
+| `GET /v2/stations` | Global paginated telemetry: every active server, per-zone player counts, IPs/ports. |
+| `GET /v2/fleets/{fleet_id}/stations` | Paginated stations for one fleet. |
+| `GET /v2/stations/{station_id}` | Region, live player count, session ids. |
+| `GET\|POST /v2/stations/{station_id}/config` | Whitelists, gamemode settings, spawn overrides, `BoardTextureUrl*`, netcode flags. |
+| `GET /v2/stations/{station_id}/server_events` | Match feed; `gamemode_stopped` carries score/duration/winner/players. |
+| `GET /v2/users/{user_id}` | Global profile: username, created, last login, banned. |
+| `GET /v2/fleets/{fleet_id}/bans` | Active bans for the fleet. |
+
+**404 on `v2`** (no public equivalent; the v1/v3 paths from the dashboard bundle are kept in
+the registry as `unverified`): `/fleets/{fleet_id}` (root fleet info),
+`/fleets/{fleet_id}/players`, `/fleets/{fleet_id}/roles`,
+`/stations/{station_id}/match_history` (the dashboard aggregates `server_events` instead).
+
+Service Keys get **no scope lists back** from any endpoint. Discovery therefore records the
+fleets the list returns and *probes* two cheap reads per fleet (stations, bans); the result
+is stored with `source: 'probed'` and is **advisory only** — probes can't see write scopes,
+so a probed set never pre-flight denies anything (`source: 'explicit'` sets still can).
+
 ## Structural gotchas
 
-- **Stations have no list endpoint.** They are embedded in the fleet:
-  `GET /v1/fleets/{fleet_id}` → `fleet.stations[]` (`station_id`, `station_name`, `online`).
+- **Stations come from the fleet list** (`GET /v2/fleets?include_stations=true` →
+  `items[].stations[]`) or `GET /v2/fleets/{fleet_id}/stations`. The v1 fleet-detail route is
+  unconfirmed (`/v2/fleets/{id}` 404s).
 - **Board textures and gamemode overrides are not endpoints.** They are keys inside the
   station config object (`BoardTextureUrl0`, …) read/written via
   `GET|POST /v2/stations/{station_id}/config`.

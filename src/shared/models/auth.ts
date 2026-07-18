@@ -34,6 +34,12 @@ export interface PermissionSet {
   raw?: unknown
   /** 0 = never successfully discovered (unknown — the UI must NOT deny actions). */
   discoveredAt: number
+  /**
+   * 'explicit' = the API returned actual scope lists (may pre-flight deny).
+   * 'probed' = inferred from read-only probes — advisory only, must NEVER deny:
+   * probes can't see write scopes, so absence in a probed set proves nothing.
+   */
+  source?: 'explicit' | 'probed'
 }
 
 export const EMPTY_PERMISSIONS: PermissionSet = {

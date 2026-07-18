@@ -1,33 +1,38 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T15:31:27.039Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T15:52:26.703Z._
 
-**28** endpoints registered · **28** verified · **0** unverified.
+**31** endpoints registered · **22** verified · **9** unverified.
 
 > Base URL `https://api.oriondrift.net` · auth header `x-api-key`. See `docs/API-DISCOVERY.md`.
+>
+> Unverified entries are placeholders whose URL/method/shape haven't been confirmed.
 
 ## Summary
 
 | Endpoint | Method | Path | Auth | Permission | Status |
 | --- | --- | --- | --- | --- | --- |
 | `fleet.list` | GET | `/v2/fleets` | yes | fleet:read | verified |
-| `fleet.get` | GET | `/v1/fleets/:fleetId` | yes | fleet:read | verified |
-| `fleet.update` | PATCH | `/v1/fleets/:fleetId` | yes | fleet:write | verified |
+| `fleet.stations` | GET | `/v2/fleets/:fleetId/stations` | yes | station:read | verified |
+| `fleet.get` | GET | `/v1/fleets/:fleetId` | yes | fleet:read | unverified |
+| `fleet.update` | PATCH | `/v1/fleets/:fleetId` | yes | fleet:write | unverified |
 | `fleet.config.get` | GET | `/v1/fleets/:fleetId/config` | yes | fleet_config:read | verified |
 | `fleet.config.set` | POST | `/v1/fleets/:fleetId/config` | yes | fleet_config:write | verified |
+| `station.list` | GET | `/v2/stations` | yes | station:read | verified |
 | `station.get` | GET | `/v2/stations/:stationId` | yes | station:read | verified |
 | `station.update` | PATCH | `/v1/stations/:stationId` | yes | station:write | verified |
 | `station.config.get` | GET | `/v2/stations/:stationId/config` | yes | station_config:read | verified |
 | `station.config.set` | POST | `/v2/stations/:stationId/config` | yes | station_config:write | verified |
 | `station.config.delete` | DELETE | `/v2/stations/:stationId/config` | yes | station_config:write | verified |
-| `roles.list` | GET | `/v1/fleets/:fleetId/roles` | yes | role:read | verified |
-| `roles.create` | POST | `/v1/fleets/:fleetId/roles` | yes | role:write | verified |
-| `roles.updatePermissions` | PATCH | `/v1/fleets/:fleetId/roles/:roleId/permissions` | yes | role:write | verified |
-| `roles.delete` | DELETE | `/v1/fleets/:fleetId/roles/:roleId` | yes | role:write | verified |
-| `roles.assign` | POST | `/v1/fleets/:fleetId/users/:userId/roles/:roleId` | yes | role:write | verified |
-| `roles.unassign` | DELETE | `/v1/fleets/:fleetId/users/:userId/role/:roleId` | yes | role:write | verified |
+| `roles.list` | GET | `/v1/fleets/:fleetId/roles` | yes | role:read | unverified |
+| `roles.create` | POST | `/v1/fleets/:fleetId/roles` | yes | role:write | unverified |
+| `roles.updatePermissions` | PATCH | `/v1/fleets/:fleetId/roles/:roleId/permissions` | yes | role:write | unverified |
+| `roles.delete` | DELETE | `/v1/fleets/:fleetId/roles/:roleId` | yes | role:write | unverified |
+| `roles.assign` | POST | `/v1/fleets/:fleetId/users/:userId/roles/:roleId` | yes | role:write | unverified |
+| `roles.unassign` | DELETE | `/v1/fleets/:fleetId/users/:userId/role/:roleId` | yes | role:write | unverified |
+| `user.get` | GET | `/v2/users/:userId` | yes | user_data:read | verified |
 | `player.search` | GET | `/v1/user_search` | yes | user_data:read | verified |
-| `player.listByFleet` | GET | `/v3/fleets/:fleetId/users` | yes | user_data:read | verified |
+| `player.listByFleet` | GET | `/v3/fleets/:fleetId/users` | yes | user_data:read | unverified |
 | `player.get` | GET | `/v1/fleets/:fleetId/users/:userId` | yes | user_data:read | verified |
 | `player.bans` | GET | `/v1/fleets/:fleetId/users/:userId/bans` | yes | user_data:read | verified |
 | `moderation.bans` | GET | `/v2/fleets/:fleetId/bans` | yes | user_data:read | verified |
@@ -49,15 +54,27 @@ All fleets the authenticated key can access (used to validate a key).
 - **Auth required:** yes
 - **Permission scope:** fleet:read
 - **Status:** verified
+- **Parameters:**
+  - `include_config` (query) — e.g. `true`
+  - `include_stations` (query) — e.g. `true`
+  - `include_offline_fleets` (query) — e.g. `false`
+  - `page` (query) — e.g. `1`
+  - `page_size` (query) — e.g. `32`
 - **Example response:**
 
   ```json
   {
-    "fleets": [
+    "items": [
       {
         "fleet_id": "flt_1",
         "fleet_name": "Strike",
-        "stations": []
+        "stations": [
+          {
+            "station_id": "stn_1",
+            "station_name": "Station One",
+            "online": true
+          }
+        ]
       }
     ]
   }
@@ -71,7 +88,7 @@ Fleet detail. The response `fleet.stations[]` is the station list for the fleet.
 - **Method / Path:** `GET /v1/fleets/:fleetId`
 - **Auth required:** yes
 - **Permission scope:** fleet:read
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
@@ -92,6 +109,7 @@ Fleet detail. The response `fleet.stations[]` is the station list for the fleet.
     }
   }
   ```
+- **Notes:** Live probing found /v2/fleets/{id} returns 404; this v1 path is unconfirmed. Prefer fleet.list / fleet.stations.
 
 ### Update fleet — `fleet.update`
 
@@ -100,10 +118,76 @@ Patch fleet-level settings.
 - **Method / Path:** `PATCH /v1/fleets/:fleetId`
 - **Auth required:** yes
 - **Permission scope:** fleet:write
+- **Status:** unverified
+- **Fleet-scoped**
+- **Parameters:**
+  - `fleetId` (path) — required — e.g. `flt_1`
+- **Notes:** Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API.
+
+## station
+
+### List fleet stations — `fleet.stations`
+
+Paginated list of active stations running within a fleet.
+
+- **Method / Path:** `GET /v2/fleets/:fleetId/stations`
+- **Auth required:** yes
+- **Permission scope:** station:read
 - **Status:** verified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
+  - `page` (query) — e.g. `1`
+  - `page_size` (query) — e.g. `32`
+- **Example response:**
+
+  ```json
+  {
+    "items": [
+      {
+        "station_id": "stn_1",
+        "station_name": "Station One",
+        "online": true
+      }
+    ]
+  }
+  ```
+
+### List all stations (global) — `station.list`
+
+Global paginated telemetry: every active server across all fleets, with per-zone player counts.
+
+- **Method / Path:** `GET /v2/stations`
+- **Auth required:** yes
+- **Permission scope:** station:read
+- **Status:** verified
+- **Parameters:**
+  - `page` (query) — e.g. `1`
+  - `page_size` (query) — e.g. `32`
+
+### Get station — `station.get`
+
+Live detail for a single station.
+
+- **Method / Path:** `GET /v2/stations/:stationId`
+- **Auth required:** yes
+- **Permission scope:** station:read
+- **Status:** verified
+- **Station-scoped**
+- **Parameters:**
+  - `stationId` (path) — required — e.g. `stn_1`
+
+### Update station — `station.update`
+
+Patch station settings.
+
+- **Method / Path:** `PATCH /v1/stations/:stationId`
+- **Auth required:** yes
+- **Permission scope:** station:write
+- **Status:** verified
+- **Station-scoped**
+- **Parameters:**
+  - `stationId` (path) — required — e.g. `stn_1`
 
 ## config
 
@@ -176,32 +260,6 @@ Delete/reset the station config override.
 - **Parameters:**
   - `stationId` (path) — required — e.g. `stn_1`
 
-## station
-
-### Get station — `station.get`
-
-Live detail for a single station.
-
-- **Method / Path:** `GET /v2/stations/:stationId`
-- **Auth required:** yes
-- **Permission scope:** station:read
-- **Status:** verified
-- **Station-scoped**
-- **Parameters:**
-  - `stationId` (path) — required — e.g. `stn_1`
-
-### Update station — `station.update`
-
-Patch station settings.
-
-- **Method / Path:** `PATCH /v1/stations/:stationId`
-- **Auth required:** yes
-- **Permission scope:** station:write
-- **Status:** verified
-- **Station-scoped**
-- **Parameters:**
-  - `stationId` (path) — required — e.g. `stn_1`
-
 ## roles
 
 ### List fleet roles — `roles.list`
@@ -211,7 +269,7 @@ Roles for a fleet (use fleetId "global" for global roles).
 - **Method / Path:** `GET /v1/fleets/:fleetId/roles`
 - **Auth required:** yes
 - **Permission scope:** role:read
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `global`
@@ -231,6 +289,7 @@ Roles for a fleet (use fleetId "global" for global roles).
     ]
   }
   ```
+- **Notes:** Live probing found /v2/fleets/{id}/roles returns 404; v1 roles paths unconfirmed against the live API.
 
 ### Create role — `roles.create`
 
@@ -239,7 +298,7 @@ Create a role in a fleet.
 - **Method / Path:** `POST /v1/fleets/:fleetId/roles`
 - **Auth required:** yes
 - **Permission scope:** role:write
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
@@ -254,6 +313,7 @@ Create a role in a fleet.
     ]
   }
   ```
+- **Notes:** Roles resource 404s on v2; v1 path unconfirmed against the live API.
 
 ### Set role permissions — `roles.updatePermissions`
 
@@ -262,7 +322,7 @@ Replace a role's permission list.
 - **Method / Path:** `PATCH /v1/fleets/:fleetId/roles/:roleId/permissions`
 - **Auth required:** yes
 - **Permission scope:** role:write
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
@@ -277,6 +337,7 @@ Replace a role's permission list.
     ]
   }
   ```
+- **Notes:** Roles resource 404s on v2; v1 path unconfirmed against the live API.
 
 ### Delete role — `roles.delete`
 
@@ -285,11 +346,12 @@ Delete a role from a fleet.
 - **Method / Path:** `DELETE /v1/fleets/:fleetId/roles/:roleId`
 - **Auth required:** yes
 - **Permission scope:** role:write
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
   - `roleId` (path) — required — e.g. `rol_1`
+- **Notes:** Roles resource 404s on v2; v1 path unconfirmed against the live API.
 
 ### Assign role to user — `roles.assign`
 
@@ -298,12 +360,13 @@ Grant a role to a user in a fleet.
 - **Method / Path:** `POST /v1/fleets/:fleetId/users/:userId/roles/:roleId`
 - **Auth required:** yes
 - **Permission scope:** role:write
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
   - `userId` (path) — required — e.g. `usr_1`
   - `roleId` (path) — required — e.g. `rol_1`
+- **Notes:** Roles resource 404s on v2; v1 path unconfirmed against the live API.
 
 ### Remove role from user — `roles.unassign`
 
@@ -312,14 +375,37 @@ Revoke a role from a user in a fleet.
 - **Method / Path:** `DELETE /v1/fleets/:fleetId/users/:userId/role/:roleId`
 - **Auth required:** yes
 - **Permission scope:** role:write
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
   - `userId` (path) — required — e.g. `usr_1`
   - `roleId` (path) — required — e.g. `rol_1`
+- **Notes:** Roles resource 404s on v2; v1 path unconfirmed against the live API.
 
 ## player
+
+### Get user (global) — `user.get`
+
+Global player profile by id: username, account creation date, last login, ban status.
+
+- **Method / Path:** `GET /v2/users/:userId`
+- **Auth required:** yes
+- **Permission scope:** user_data:read
+- **Status:** verified
+- **Parameters:**
+  - `userId` (path) — required — e.g. `usr_1`
+- **Example response:**
+
+  ```json
+  {
+    "user_id": "usr_1",
+    "display_name": "Nova",
+    "created_at": "2025-01-01T00:00:00Z",
+    "last_login": "2026-07-01T00:00:00Z",
+    "banned": false
+  }
+  ```
 
 ### Search users (global) — `player.search`
 
@@ -351,7 +437,7 @@ Paged users in a fleet, with roles.
 - **Method / Path:** `GET /v3/fleets/:fleetId/users`
 - **Auth required:** yes
 - **Permission scope:** user_data:read
-- **Status:** verified
+- **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
@@ -359,6 +445,7 @@ Paged users in a fleet, with roles.
   - `page` (query) — e.g. `1`
   - `page_size` (query) — e.g. `16`
   - `include_roles` (query) — e.g. `true`
+- **Notes:** Live probing found /v2/fleets/{id}/players returns 404; this v3 path is unconfirmed. user.get works globally.
 
 ### Get fleet user — `player.get`
 

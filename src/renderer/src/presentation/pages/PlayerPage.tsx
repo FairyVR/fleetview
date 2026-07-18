@@ -66,6 +66,7 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
   const [banHours, setBanHours] = useState('24')
   const [banHistory, setBanHistory] = useState<Ban[]>([])
   const [loadingBans, setLoadingBans] = useState(false)
+  const [profile, setProfile] = useState<unknown>(null)
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -74,8 +75,15 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
 
   async function openDetail(player: Player) {
     setSelectedPlayer(player)
+    setProfile(null)
     setDetailOpen(true)
     setLoadingBans(true)
+    // Global profile (user.get is the confirmed v2 endpoint; fleet player lists may 404).
+    void api
+      .request({ endpointId: 'user.get', params: { userId: player.id } })
+      .then((res) => {
+        if (res.ok) setProfile(res.data)
+      })
     try {
       const res = await api.request({
         endpointId: 'player.bans',
@@ -174,7 +182,7 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
       >
         {selectedPlayer && (
           <div className="space-y-4">
-            <JsonBlock value={selectedPlayer} />
+            <JsonBlock value={profile ?? selectedPlayer} />
 
             <div className="space-y-3">
               <h3 className="font-medium flex items-center gap-2">

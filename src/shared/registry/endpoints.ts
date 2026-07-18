@@ -29,10 +29,43 @@ export const endpoints: EndpointDef[] = [
     category: 'fleet',
     method: 'GET',
     path: '/v2/fleets',
+    params: [
+      { name: 'include_config', in: 'query', required: false, example: true },
+      { name: 'include_stations', in: 'query', required: false, example: true },
+      { name: 'include_offline_fleets', in: 'query', required: false, example: false },
+      { name: 'page', in: 'query', required: false, example: 1 },
+      { name: 'page_size', in: 'query', required: false, example: 32 }
+    ],
     requiresAuth: true,
     permission: 'fleet:read',
-    responseExample: { fleets: [{ fleet_id: 'flt_1', fleet_name: 'Strike', stations: [] }] },
+    responseExample: {
+      items: [
+        {
+          fleet_id: 'flt_1',
+          fleet_name: 'Strike',
+          stations: [{ station_id: 'stn_1', station_name: 'Station One', online: true }]
+        }
+      ]
+    },
     statusCodes: { 200: 'OK', 401: 'Invalid key', 403: 'Forbidden' },
+    status: 'verified'
+  },
+  {
+    id: 'fleet.stations',
+    name: 'List fleet stations',
+    description: 'Paginated list of active stations running within a fleet.',
+    category: 'station',
+    method: 'GET',
+    path: '/v2/fleets/:fleetId/stations',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'page', in: 'query', required: false, example: 1 },
+      { name: 'page_size', in: 'query', required: false, example: 32 }
+    ],
+    requiresAuth: true,
+    permission: 'station:read',
+    fleetScoped: true,
+    responseExample: { items: [{ station_id: 'stn_1', station_name: 'Station One', online: true }] },
     status: 'verified'
   },
   {
@@ -53,7 +86,8 @@ export const endpoints: EndpointDef[] = [
         stations: [{ station_id: 'stn_1', station_name: 'Station One', online: true }]
       }
     },
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Live probing found /v2/fleets/{id} returns 404; this v1 path is unconfirmed. Prefer fleet.list / fleet.stations.'
   },
   {
     id: 'fleet.update',
@@ -66,7 +100,8 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'fleet:write',
     fleetScoped: true,
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API.'
   },
   {
     id: 'fleet.config.get',
@@ -96,6 +131,22 @@ export const endpoints: EndpointDef[] = [
   },
 
   // ── Stations ───────────────────────────────────────────────────────
+  {
+    id: 'station.list',
+    name: 'List all stations (global)',
+    description:
+      'Global paginated telemetry: every active server across all fleets, with per-zone player counts.',
+    category: 'station',
+    method: 'GET',
+    path: '/v2/stations',
+    params: [
+      { name: 'page', in: 'query', required: false, example: 1 },
+      { name: 'page_size', in: 'query', required: false, example: 32 }
+    ],
+    requiresAuth: true,
+    permission: 'station:read',
+    status: 'verified'
+  },
   {
     id: 'station.get',
     name: 'Get station',
@@ -179,7 +230,8 @@ export const endpoints: EndpointDef[] = [
     responseExample: {
       roles: [{ role_id: 'rol_1', role_name: 'Moderator', role_description: '', permissions: ['user_ban:write'] }]
     },
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Live probing found /v2/fleets/{id}/roles returns 404; v1 roles paths unconfirmed against the live API.'
   },
   {
     id: 'roles.create',
@@ -193,7 +245,8 @@ export const endpoints: EndpointDef[] = [
     permission: 'role:write',
     fleetScoped: true,
     requestExample: { role_name: 'Moderator', role_description: '', permissions: ['user_ban:write'] },
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Roles resource 404s on v2; v1 path unconfirmed against the live API.'
   },
   {
     id: 'roles.updatePermissions',
@@ -210,7 +263,8 @@ export const endpoints: EndpointDef[] = [
     permission: 'role:write',
     fleetScoped: true,
     requestExample: { permissions: ['user_ban:write', 'user_kick'] },
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Roles resource 404s on v2; v1 path unconfirmed against the live API.'
   },
   {
     id: 'roles.delete',
@@ -226,7 +280,8 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'role:write',
     fleetScoped: true,
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Roles resource 404s on v2; v1 path unconfirmed against the live API.'
   },
   {
     id: 'roles.assign',
@@ -243,7 +298,8 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'role:write',
     fleetScoped: true,
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Roles resource 404s on v2; v1 path unconfirmed against the live API.'
   },
   {
     id: 'roles.unassign',
@@ -260,10 +316,31 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'role:write',
     fleetScoped: true,
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Roles resource 404s on v2; v1 path unconfirmed against the live API.'
   },
 
   // ── Players / users ────────────────────────────────────────────────
+  {
+    id: 'user.get',
+    name: 'Get user (global)',
+    description:
+      'Global player profile by id: username, account creation date, last login, ban status.',
+    category: 'player',
+    method: 'GET',
+    path: '/v2/users/:userId',
+    params: [{ name: 'userId', in: 'path', required: true, example: 'usr_1' }],
+    requiresAuth: true,
+    permission: 'user_data:read',
+    responseExample: {
+      user_id: 'usr_1',
+      display_name: 'Nova',
+      created_at: '2025-01-01T00:00:00Z',
+      last_login: '2026-07-01T00:00:00Z',
+      banned: false
+    },
+    status: 'verified'
+  },
   {
     id: 'player.search',
     name: 'Search users (global)',
@@ -294,7 +371,8 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'user_data:read',
     fleetScoped: true,
-    status: 'verified'
+    status: 'unverified',
+    notes: 'Live probing found /v2/fleets/{id}/players returns 404; this v3 path is unconfirmed. user.get works globally.'
   },
   {
     id: 'player.get',

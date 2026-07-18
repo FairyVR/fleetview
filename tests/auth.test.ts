@@ -55,6 +55,28 @@ describe('per-fleet permission model', () => {
   })
 })
 
+describe('probed permission sets (advisory only)', () => {
+  // Mirrors the guard in api-client checkPermission and useAppStore permissionState:
+  // only source === 'explicit' may ever deny; probed absence proves nothing.
+  const probed: PermissionSet = {
+    grants: { flt_1: ['fleet:read', 'station:read'] },
+    discoveredAt: 1,
+    source: 'probed'
+  }
+
+  it('is discovered (so the UI can display it)', () => {
+    expect(isDiscovered(probed)).toBe(true)
+  })
+
+  it('the deny guard treats non-explicit sources as unknown', () => {
+    const mayDeny = (p: PermissionSet) => p.source === 'explicit'
+    expect(mayDeny(probed)).toBe(false)
+    expect(mayDeny({ ...probed, source: 'explicit' })).toBe(true)
+    // legacy persisted sets without a source must not deny either
+    expect(mayDeny({ grants: { A: ['fleet:read'] }, discoveredAt: 1 })).toBe(false)
+  })
+})
+
 describe('parseGrants', () => {
   it('parses a fleet->scopes map', () => {
     expect(parseGrants({ permissions: { A: ['fleet:read'], B: ['admin'] } })).toEqual({

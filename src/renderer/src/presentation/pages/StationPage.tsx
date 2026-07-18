@@ -7,13 +7,11 @@ import { RequestResult } from '../components/RequestResult'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
 
-/**
- * There is no "list stations" endpoint — stations are embedded in the fleet object
- * (GET /v1/fleets/{fleet_id} -> fleet.stations[]).
- */
 function asStations(data: unknown, fleetId: string): Station[] {
-  const d = data as { fleet?: { stations?: unknown[] }; stations?: unknown[] } | unknown[]
-  const arr = Array.isArray(d) ? d : (d?.fleet?.stations ?? d?.stations ?? [])
+  const d = data as
+    | { items?: unknown[]; fleet?: { stations?: unknown[] }; stations?: unknown[] }
+    | unknown[]
+  const arr = Array.isArray(d) ? d : (d?.items ?? d?.fleet?.stations ?? d?.stations ?? [])
   return (arr as Record<string, unknown>[]).map((s) => ({
     id: String(s.station_id ?? s.id ?? ''),
     fleetId,
@@ -30,7 +28,7 @@ function asStations(data: unknown, fleetId: string): Station[] {
 export default function StationPage() {
   const { fleetId, fleetName, stationId, selectStation } = useSelectionStore()
   const navigate = useNavigate()
-  const { response, loading, run } = useEndpoint('fleet.get', {
+  const { response, loading, run } = useEndpoint('fleet.stations', {
     params: fleetId ? { fleetId } : undefined,
     auto: !!fleetId,
     enabled: !!fleetId

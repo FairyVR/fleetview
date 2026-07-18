@@ -41,6 +41,8 @@ function checkPermission(
   if (scope === 'none' || !keyId) return null
   const perms: PermissionSet | undefined = permissionsStore.get('perms')[keyId]
   if (!isDiscovered(perms)) return null
+  // Probed grants come from read-only probes and can't see write scopes — advisory only.
+  if (perms.source !== 'explicit') return null
   const fleetId = params?.fleetId !== undefined ? String(params.fleetId) : undefined
   if (hasScope(perms, scope, fleetId)) return null
   return {
