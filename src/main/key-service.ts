@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { ApiKeyRecord, KeyHealth, PermissionSet } from '@shared/models'
-import { EMPTY_PERMISSIONS } from '@shared/models'
+import { EMPTY_PERMISSIONS, parseGrants } from '@shared/models'
 import { keysStore, permissionsStore, settingsStore } from './stores'
 import { saveSecret, deleteSecret } from './secure-storage'
 import { executeRequest } from './api-client'
@@ -91,48 +91,30 @@ export async function testKey(keyId: string): Promise<{ health: KeyHealth; messa
 }
 
 /**
- * Discover the permission set for a key by calling the permissions endpoint and mapping
- * the (unknown-shape) response onto our PermissionSet. Permissive by design.
+ * Discover the per-fleet permission grants for a key. A failed or unparseable discovery
+ * NEVER persists an empty "discovered" set — that would wrongly deny every action.
+ * Instead the stored state stays unknown and the API client attempts requests normally.
  */
 export async function discoverPermissions(keyId: string): Promise<PermissionSet> {
   const res = await executeRequest({ endpointId: 'permissions.summary', keyId })
-  const perms: PermissionSet = { ...EMPTY_PERMISSIONS, discoveredAt: Date.now() }
-
-  if (res.ok && res.data && typeof res.data === 'object') {
-    const d = res.data as Record<string, unknown>
-    const scopes = Array.isArray(d.scopes) ? (d.scopes as string[]) : []
-    perms.read = scopes.includes('read') || res.ok
-    perms.write = scopes.includes('write')
-    perms.moderation = scopes.includes('moderation')
-    perms.playerManagement = scopes.includes('player-management') || scopes.includes('players')
-    perms.roleManagement = scopes.includes('role-management') || scopes.includes('roles')
-    perms.customization = scopes.includes('customization')
-    perms.events = scopes.includes('events')
-    perms.fleets = Array.isArray(d.fleets) ? (d.fleets as string[]) : []
-    perms.stations = Array.isArray(d.stations) ? (d.stations as string[]) : []
-    perms.raw = res.data
-  }
-
   const store = permissionsStore.get('perms')
+
+  if (!res.ok) return store[keyId] ?? EMPTY_PERMISSIONS
+
+  const grants = parseGrants(res.data)
+  if (!grants) return store[keyId] ?? EMPTY_PERMISSIONS
+
+  const perms: PermissionSet = { grants, raw: res.data, discoveredAt: Date.now() }
   store[keyId] = perms
   permissionsStore.set('perms', store)
 
-  const active: string[] = []
-  for (const [flag, label] of [
-    ['read', 'read'],
-    ['write', 'write'],
-    ['moderation', 'moderation'],
-    ['playerManagement', 'players'],
-    ['roleManagement', 'roles'],
-    ['customization', 'customization'],
-    ['events', 'events']
-  ] as const) {
-    if (perms[flag]) active.push(label)
-  }
+  const fleets = Object.keys(grants)
+  const allScopes = new Set(Object.values(grants).flat())
   patchKey(keyId, {
-    permissionSummary: active.join(', ') || 'none',
-    fleetAccess: perms.fleets,
-    stationAccess: perms.stations
+    permissionSummary: `${fleets.length} fleet${fleets.length === 1 ? '' : 's'} · ${
+      allScopes.has('admin') ? 'admin · ' : ''
+    }${allScopes.size} scopes`,
+    fleetAccess: fleets
   })
   return perms
 }

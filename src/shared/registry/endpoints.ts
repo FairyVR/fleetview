@@ -26,7 +26,7 @@ export const endpoints: EndpointDef[] = [
     method: 'GET',
     path: '/v1/me',
     requiresAuth: true,
-    permission: 'read',
+    permission: 'none',
     responseExample: { id: 'usr_123', name: 'ExampleOwner', platform: 'meta' },
     statusCodes: { 200: 'OK', 401: 'Invalid or expired key' },
     status: 'unverified',
@@ -42,11 +42,12 @@ export const endpoints: EndpointDef[] = [
     method: 'GET',
     path: '/v1/permissions',
     requiresAuth: true,
-    permission: 'read',
+    permission: 'none',
     responseExample: {
-      scopes: ['read', 'write', 'moderation'],
-      fleets: ['flt_1'],
-      stations: ['stn_1', 'stn_2']
+      permissions: {
+        'Strike Tournament': ['admin', 'fleet:join', 'user_kick'],
+        Strike: ['fleet:join', 'fleet:read', 'station_config:read', 'station_config:write']
+      }
     },
     statusCodes: { 200: 'OK', 401: 'Unauthorized', 403: 'Forbidden' },
     status: 'unverified',
@@ -62,7 +63,7 @@ export const endpoints: EndpointDef[] = [
     method: 'GET',
     path: '/v1/fleets',
     requiresAuth: true,
-    permission: 'read',
+    permission: 'fleet:read',
     responseExample: [
       { id: 'flt_1', name: 'Alpha Fleet', region: 'us-east', stationCount: 3 }
     ],
@@ -79,7 +80,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/fleets/:fleetId',
     params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
     requiresAuth: true,
-    permission: 'read',
+    permission: 'fleet:read',
     fleetScoped: true,
     status: 'unverified',
     notes: UNVERIFIED
@@ -95,7 +96,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/fleets/:fleetId/stations',
     params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
     requiresAuth: true,
-    permission: 'read',
+    permission: 'station:read',
     fleetScoped: true,
     responseExample: [
       { id: 'stn_1', name: 'Station One', status: 'online', playerCount: 4, version: '1.2.3' }
@@ -112,7 +113,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/stations/:stationId',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'read',
+    permission: 'station:read',
     stationScoped: true,
     status: 'unverified',
     notes: UNVERIFIED
@@ -126,7 +127,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/stations/:stationId/config',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'write',
+    permission: 'station_config:write',
     stationScoped: true,
     requestExample: { config: { maxPlayers: 8 } },
     statusCodes: { 200: 'Saved', 403: 'Missing write permission', 422: 'Invalid config' },
@@ -144,7 +145,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/stations/:stationId/boards',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'customization',
+    permission: 'station_config:read',
     stationScoped: true,
     responseExample: {
       slots: [{ key: 'BoardTextureUrl0', name: 'Board 0', textureUrl: 'https://…/a.png' }]
@@ -164,7 +165,7 @@ export const endpoints: EndpointDef[] = [
       { name: 'slotKey', in: 'path', required: true, example: 'BoardTextureUrl0' }
     ],
     requiresAuth: true,
-    permission: 'customization',
+    permission: 'custom_config:write',
     stationScoped: true,
     requestExample: { textureUrl: 'https://…/new.png' },
     status: 'unverified',
@@ -181,7 +182,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/stations/:stationId/gamemodes',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'read',
+    permission: 'station_config:read',
     stationScoped: true,
     status: 'unverified',
     notes: UNVERIFIED
@@ -198,7 +199,7 @@ export const endpoints: EndpointDef[] = [
       { name: 'gamemodeKey', in: 'path', required: true, example: 'deathmatch' }
     ],
     requiresAuth: true,
-    permission: 'write',
+    permission: 'station_config:write',
     stationScoped: true,
     requestExample: { overrides: { scoreLimit: 25 } },
     status: 'unverified',
@@ -215,7 +216,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/players',
     params: [{ name: 'q', in: 'query', required: false, example: 'nova' }],
     requiresAuth: true,
-    permission: 'player-management',
+    permission: 'user_data:read',
     status: 'unverified',
     notes: UNVERIFIED
   },
@@ -228,7 +229,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/players/:playerId',
     params: [{ name: 'playerId', in: 'path', required: true, example: 'ply_1' }],
     requiresAuth: true,
-    permission: 'player-management',
+    permission: 'user_data:read',
     status: 'unverified',
     notes: UNVERIFIED
   },
@@ -242,7 +243,7 @@ export const endpoints: EndpointDef[] = [
     method: 'GET',
     path: '/v1/roles',
     requiresAuth: true,
-    permission: 'role-management',
+    permission: 'role:read',
     status: 'unverified',
     notes: UNVERIFIED
   },
@@ -255,7 +256,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/players/:playerId/roles',
     params: [{ name: 'playerId', in: 'path', required: true, example: 'ply_1' }],
     requiresAuth: true,
-    permission: 'role-management',
+    permission: 'role:write',
     requestExample: { roleId: 'rol_mod' },
     status: 'unverified',
     notes: UNVERIFIED
@@ -270,7 +271,7 @@ export const endpoints: EndpointDef[] = [
     method: 'POST',
     path: '/v1/moderation/bans',
     requiresAuth: true,
-    permission: 'moderation',
+    permission: 'user_ban:write',
     requestExample: { playerId: 'ply_1', reason: 'cheating', durationHours: 24 },
     status: 'unverified',
     notes: UNVERIFIED
@@ -284,7 +285,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/moderation/bans/:banId',
     params: [{ name: 'banId', in: 'path', required: true, example: 'ban_1' }],
     requiresAuth: true,
-    permission: 'moderation',
+    permission: 'user_ban:revoke',
     status: 'unverified',
     notes: UNVERIFIED
   },
@@ -297,7 +298,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/stations/:stationId/kick',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'moderation',
+    permission: 'user_kick',
     stationScoped: true,
     requestExample: { playerId: 'ply_1' },
     status: 'unverified',
@@ -317,7 +318,7 @@ export const endpoints: EndpointDef[] = [
       { name: 'since', in: 'query', required: false, example: 0 }
     ],
     requiresAuth: true,
-    permission: 'events',
+    permission: 'server_event:read',
     stationScoped: true,
     status: 'unverified',
     notes: UNVERIFIED
@@ -333,7 +334,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/stations/:stationId/matches',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'read',
+    permission: 'station:read',
     stationScoped: true,
     status: 'unverified',
     notes: UNVERIFIED
@@ -347,7 +348,7 @@ export const endpoints: EndpointDef[] = [
     path: '/v1/matches/:matchId',
     params: [{ name: 'matchId', in: 'path', required: true, example: 'mtc_1' }],
     requiresAuth: true,
-    permission: 'read',
+    permission: 'station:read',
     status: 'unverified',
     notes: UNVERIFIED
   }

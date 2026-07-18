@@ -208,7 +208,7 @@ function GamemodeEditor({ stationId }: { stationId: string }) {
                       <Button variant="ghost" onClick={() => setEdited((e) => ({ ...e, [gamemode.key]: {} }))}>
                         <Copy size={13} /> Duplicate
                       </Button>
-                      <PermissionGate scope="write">
+                      <PermissionGate scope="station_config:write">
                         <Button
                           variant="primary"
                           onClick={() => void saveGamemode(gamemode)}

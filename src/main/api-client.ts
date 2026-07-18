@@ -6,7 +6,7 @@ import type {
   RequestLogEntry,
   PermissionSet
 } from '@shared/models'
-import { scopeToFlag } from '@shared/models'
+import { hasScope, isDiscovered } from '@shared/models'
 import { getEndpoint, buildUrl } from '@shared/registry'
 import { settingsStore, keysStore, permissionsStore } from './stores'
 import { readSecret } from './secure-storage'
@@ -26,18 +26,27 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
   return out
 }
 
-/** Pre-flight permission check against the key's discovered permissions. */
-function checkPermission(keyId: string | null, scope: string): ApiError | null {
+/**
+ * Pre-flight permission check against the key's discovered per-fleet grants.
+ * Only denies when discovery genuinely succeeded AND no fleet (or the specific fleet,
+ * when a fleetId param is present) grants the scope. "admin" in a fleet grants all.
+ * Unknown/failed discovery NEVER blocks — the server is the authority.
+ */
+function checkPermission(
+  keyId: string | null,
+  scope: string,
+  params?: Record<string, string | number | boolean>
+): ApiError | null {
   if (scope === 'none' || !keyId) return null
-  const flag = scopeToFlag(scope)
-  if (!flag) return null
   const perms: PermissionSet | undefined = permissionsStore.get('perms')[keyId]
-  // If we have not discovered permissions yet, allow the attempt (can't pre-judge).
-  if (!perms || perms.discoveredAt === 0) return null
-  if (perms[flag] === true) return null
+  if (!isDiscovered(perms)) return null
+  const fleetId = params?.fleetId !== undefined ? String(params.fleetId) : undefined
+  if (hasScope(perms, scope, fleetId)) return null
   return {
     kind: 'permission-denied',
-    message: `The active key is missing the "${scope}" permission for this action.`,
+    message: fleetId
+      ? `The active key is missing "${scope}" for fleet "${fleetId}".`
+      : `The active key is missing "${scope}" in every fleet it can access.`,
     missingPermission: scope
   }
 }
@@ -121,7 +130,7 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
   }
 
   // Permission pre-flight (do not attempt if we know the key can't do it).
-  const permErr = checkPermission(keyId, endpoint.permission)
+  const permErr = checkPermission(keyId, endpoint.permission, args.params)
   if (permErr) return fail(permErr)
 
   // Build URL.

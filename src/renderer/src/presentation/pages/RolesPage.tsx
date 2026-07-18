@@ -90,7 +90,7 @@ export default function RolesPage() {
           )}
         </RequestResult>
 
-        <PermissionGate scope="role-management">
+        <PermissionGate scope="role:write">
           <Card>
             <div className="font-medium mb-4 flex items-center gap-2">
               <Shield size={16} /> Assign Role

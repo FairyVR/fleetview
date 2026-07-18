@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { ApiKeyRecord, PermissionSet } from '@shared/models'
-import { EMPTY_PERMISSIONS, scopeToFlag } from '@shared/models'
+import { EMPTY_PERMISSIONS, hasScope, isDiscovered } from '@shared/models'
 import type { AppSettings } from '@shared/ipc'
 import { api } from '../lib/api'
 
@@ -70,9 +70,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   permissionState: (scope) => {
     const perms = get().permissions
     if (scope === 'none') return 'allowed'
-    if (perms.discoveredAt === 0) return 'unknown'
-    const flag = scopeToFlag(scope)
-    if (!flag) return 'unknown'
-    return perms[flag] === true ? 'allowed' : 'denied'
+    // No successfully-parsed grants -> unknown; never deny on unknown.
+    if (!isDiscovered(perms)) return 'unknown'
+    return hasScope(perms, scope) ? 'allowed' : 'denied'
   }
 }))

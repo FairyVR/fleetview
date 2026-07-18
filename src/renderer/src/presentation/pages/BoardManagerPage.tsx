@@ -69,7 +69,7 @@ function BoardEditor({ stationId }: { stationId: string }) {
         <Button onClick={() => void load()} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reload
         </Button>
-        <PermissionGate scope="customization">
+        <PermissionGate scope="custom_config:write">
           <Button variant="primary" disabled={!dirty} onClick={() => void saveAll()}>
             <Save size={14} /> Save all
           </Button>
@@ -114,7 +114,7 @@ function BoardEditor({ stationId }: { stationId: string }) {
             </Field>
 
             <div className="flex gap-2">
-              <PermissionGate scope="customization">
+              <PermissionGate scope="custom_config:write">
                 <Button variant="primary" onClick={() => void apply(slot)}>
                   <Upload size={13} /> Apply
                 </Button>

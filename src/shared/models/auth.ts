@@ -14,7 +14,7 @@ export interface ApiKeyRecord {
   lastUsedAt?: number
   lastValidatedAt?: number
   health: KeyHealth
-  /** Human-readable summary derived from the permission set, e.g. "read, moderation". */
+  /** Human-readable summary derived from the discovered grants. */
   permissionSummary?: string
   fleetAccess?: string[]
   stationAccess?: string[]
@@ -22,55 +22,90 @@ export interface ApiKeyRecord {
   maskedHint?: string
 }
 
-/** Per-scope permission booleans, discovered after authentication. */
+/**
+ * Permissions in Orion Drift are granted PER FLEET, not per account. Each fleet maps to a
+ * list of scope strings like "fleet:read", "station_config:write", "user_ban:write".
+ * The special scope "admin" grants every permission within that fleet.
+ */
 export interface PermissionSet {
-  read: boolean
-  write: boolean
-  moderation: boolean
-  playerManagement: boolean
-  roleManagement: boolean
-  customization: boolean
-  events: boolean
-  /** Fleets this key can touch, by id. Empty = unknown/none. */
-  fleets: string[]
-  /** Stations this key can touch, by id. */
-  stations: string[]
+  /** fleetId/name -> scopes granted for that fleet. */
+  grants: Record<string, string[]>
   /** Raw permission payload from the API, retained for the Developer view. */
   raw?: unknown
+  /** 0 = never successfully discovered (unknown — the UI must NOT deny actions). */
   discoveredAt: number
 }
 
 export const EMPTY_PERMISSIONS: PermissionSet = {
-  read: false,
-  write: false,
-  moderation: false,
-  playerManagement: false,
-  roleManagement: false,
-  customization: false,
-  events: false,
-  fleets: [],
-  stations: [],
+  grants: {},
   discoveredAt: 0
 }
 
-/** Map a permission scope name (from the registry) to a PermissionSet flag. */
-export function scopeToFlag(scope: string): keyof PermissionSet | null {
-  switch (scope) {
-    case 'read':
-      return 'read'
-    case 'write':
-      return 'write'
-    case 'moderation':
-      return 'moderation'
-    case 'player-management':
-      return 'playerManagement'
-    case 'role-management':
-      return 'roleManagement'
-    case 'customization':
-      return 'customization'
-    case 'events':
-      return 'events'
-    default:
-      return null
+/** True when this fleet's scope list satisfies `scope` ("admin" grants everything). */
+export function fleetHasScope(scopes: string[], scope: string): boolean {
+  return scopes.includes('admin') || scopes.includes(scope)
+}
+
+/**
+ * True if the key holds `scope` in the given fleet — or, when `fleetId` is omitted or the
+ * fleet is unknown to us (e.g. station-scoped calls), in ANY fleet. Permissive by design:
+ * the server is the authority; this only gates obviously-unavailable actions.
+ */
+export function hasScope(perms: PermissionSet, scope: string, fleetId?: string): boolean {
+  const grants = perms.grants ?? {}
+  if (fleetId && grants[fleetId]) return fleetHasScope(grants[fleetId], scope)
+  return Object.values(grants).some((scopes) => fleetHasScope(scopes, scope))
+}
+
+/** True when the set has usable, successfully-discovered grant data. */
+export function isDiscovered(perms: PermissionSet | undefined | null): perms is PermissionSet {
+  return !!perms && perms.discoveredAt > 0 && !!perms.grants && Object.keys(perms.grants).length > 0
+}
+
+/**
+ * Extract per-fleet scope grants from an unknown-shape permissions payload.
+ * Tolerates several plausible encodings; returns null when nothing parseable is found —
+ * callers must treat null as "unknown", never as "no permissions".
+ */
+export function parseGrants(data: unknown): Record<string, string[]> | null {
+  if (!data || typeof data !== 'object') return null
+  const d = data as Record<string, unknown>
+
+  // Flat scope list with no fleet breakdown — keep under a wildcard fleet key.
+  // Checked first so { scopes: [...] } isn't misread as a fleet named "scopes".
+  const flat = [d.scopes, d.permissions].find(
+    (v): v is string[] => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string')
+  )
+  if (flat) return { '*': flat }
+
+  const candidates: unknown[] = [d.permissions, d.fleets, d.grants, data]
+
+  for (const c of candidates) {
+    // Array form: [{ fleet|fleetId|id|name, permissions|scopes: string[] }, …]
+    if (Array.isArray(c)) {
+      const out: Record<string, string[]> = {}
+      for (const item of c) {
+        if (!item || typeof item !== 'object') continue
+        const o = item as Record<string, unknown>
+        const key = [o.fleetId, o.fleet, o.id, o.name].find((v) => typeof v === 'string') as
+          | string
+          | undefined
+        const scopes = [o.permissions, o.scopes].find(Array.isArray) as unknown[] | undefined
+        if (key && scopes) out[key] = scopes.map(String)
+      }
+      if (Object.keys(out).length) return out
+    }
+    // Map form: { [fleet]: string[] }
+    if (c && typeof c === 'object' && !Array.isArray(c)) {
+      const entries = Object.entries(c as Record<string, unknown>)
+      if (
+        entries.length &&
+        entries.every(([, v]) => Array.isArray(v) && v.every((x) => typeof x === 'string'))
+      ) {
+        return Object.fromEntries(entries.map(([k, v]) => [k, v as string[]]))
+      }
+    }
   }
+
+  return null
 }

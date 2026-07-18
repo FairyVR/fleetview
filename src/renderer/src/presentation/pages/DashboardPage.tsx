@@ -6,16 +6,6 @@ import { api } from '../../lib/api'
 import { ago } from '../../lib/format'
 import { PageHeader, Card, Button, Badge, StatusDot } from '../components/ui'
 
-const SCOPES = [
-  ['read', 'Read'],
-  ['write', 'Write'],
-  ['moderation', 'Moderation'],
-  ['playerManagement', 'Players'],
-  ['roleManagement', 'Roles'],
-  ['customization', 'Customization'],
-  ['events', 'Events']
-] as const
-
 export default function DashboardPage() {
   const { keys, activeKeyId, permissions, settings, discoverActive } = useAppStore()
   const navigate = useNavigate()
@@ -79,17 +69,33 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <div className="label flex items-center gap-1.5"><ShieldCheck size={12} /> Permissions</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {SCOPES.map(([flag, label]) => (
-                    <Badge key={flag} tone={permissions[flag] ? 'good' : 'neutral'}>
-                      {permissions[flag] ? '✓' : '×'} {label}
-                    </Badge>
-                  ))}
+                <div className="label flex items-center gap-1.5">
+                  <ShieldCheck size={12} /> Permissions (granted per fleet)
                 </div>
-                {permissions.discoveredAt === 0 && (
-                  <div className="text-[12px] text-[var(--text-faint)] mt-2">
-                    Permissions not discovered yet — run discovery to gate the UI precisely.
+                {Object.keys(permissions.grants ?? {}).length > 0 ? (
+                  <div className="grid gap-2.5">
+                    {Object.entries(permissions.grants).map(([fleet, scopes]) => (
+                      <div key={fleet}>
+                        <div className="text-[12px] text-[var(--text-dim)] mb-1">{fleet}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {scopes.includes('admin') && (
+                            <Badge tone="good">admin — all permissions</Badge>
+                          )}
+                          {scopes
+                            .filter((s) => s !== 'admin')
+                            .map((s) => (
+                              <Badge key={s} tone="accent">
+                                {s}
+                              </Badge>
+                            ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-[var(--text-faint)] mt-1">
+                    Permissions not discovered yet — run discovery to see per-fleet grants.
+                    Until then, actions are attempted and the server decides.
                   </div>
                 )}
               </div>
@@ -101,8 +107,18 @@ export default function DashboardPage() {
 
         {/* Quick stats */}
         <div className="grid gap-4">
-          <Stat icon={<Rocket size={16} />} label="Fleets in scope" value={permissions.fleets.length || '—'} onClick={() => navigate('/fleets')} />
-          <Stat icon={<Server size={16} />} label="Stations in scope" value={permissions.stations.length || '—'} onClick={() => navigate('/stations')} />
+          <Stat
+            icon={<Rocket size={16} />}
+            label="Fleets with grants"
+            value={Object.keys(permissions.grants ?? {}).length || '—'}
+            onClick={() => navigate('/fleets')}
+          />
+          <Stat
+            icon={<Server size={16} />}
+            label="Distinct scopes"
+            value={new Set(Object.values(permissions.grants ?? {}).flat()).size || '—'}
+            onClick={() => navigate('/stations')}
+          />
           <Stat icon={<KeyRound size={16} />} label="Stored keys" value={keys.length} onClick={() => navigate('/keys')} />
           <Stat icon={<ShieldCheck size={16} />} label="LE configs saved" value={libCount} onClick={() => navigate('/le-library')} />
         </div>

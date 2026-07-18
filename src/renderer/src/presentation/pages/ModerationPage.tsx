@@ -73,7 +73,7 @@ export default function ModerationPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <PermissionGate scope="moderation">
+        <PermissionGate scope="user_ban:write">
           <Card>
             <div className="font-medium mb-4 flex items-center gap-2">
               <Lock size={16} /> Ban Player
@@ -125,7 +125,7 @@ export default function ModerationPage() {
           </Card>
         </PermissionGate>
 
-        <PermissionGate scope="moderation">
+        <PermissionGate scope="user_ban:revoke">
           <Card>
             <div className="font-medium mb-4 flex items-center gap-2">
               <Trash2 size={16} /> Unban Player
@@ -159,7 +159,7 @@ export default function ModerationPage() {
           </Card>
         </PermissionGate>
 
-        <PermissionGate scope="moderation">
+        <PermissionGate scope="user_kick">
           <Card>
             <div className="font-medium mb-4 flex items-center gap-2">
               <Zap size={16} /> Kick Player

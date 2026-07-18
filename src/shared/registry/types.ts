@@ -21,16 +21,33 @@ export type ModuleCategory =
 
 export type EndpointStatus = 'verified' | 'unverified' | 'deprecated'
 
-/** Permission scope an endpoint requires. Maps to PermissionSet via scopeToFlag(). */
+/**
+ * Permission scope an endpoint requires, using Orion Drift's real per-fleet scope names
+ * (as shown on dashboard.oriondrift.net/account). "admin" within a fleet implies all.
+ * 'none' = no pre-flight gate (used for identity/permission discovery endpoints so a key
+ * can always be tested).
+ */
 export type PermissionScope =
   | 'none'
-  | 'read'
-  | 'write'
-  | 'moderation'
-  | 'player-management'
-  | 'role-management'
-  | 'customization'
-  | 'events'
+  | 'admin'
+  | 'fleet:join'
+  | 'fleet:read'
+  | 'fleet_config:read'
+  | 'fleet_config:write'
+  | 'station:read'
+  | 'station_config:read'
+  | 'station_config:write'
+  | 'custom_config:write'
+  | 'user_data:read'
+  | 'user_kick'
+  | 'user_ban:write'
+  | 'user_ban:revoke'
+  | 'user_ban:update'
+  | 'user_ban_short:write'
+  | 'role:read'
+  | 'role:write'
+  | 'server_event:read'
+  | 'server_event:write'
 
 export interface ParamDef {
   name: string

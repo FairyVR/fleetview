@@ -1,22 +1,81 @@
 import { describe, it, expect } from 'vitest'
-import { scopeToFlag, EMPTY_PERMISSIONS } from '../src/shared/models/auth'
+import {
+  hasScope,
+  fleetHasScope,
+  isDiscovered,
+  parseGrants,
+  EMPTY_PERMISSIONS
+} from '../src/shared/models/auth'
+import type { PermissionSet } from '../src/shared/models/auth'
 
-describe('scopeToFlag', () => {
-  it('maps known scopes', () => {
-    expect(scopeToFlag('read')).toBe('read')
-    expect(scopeToFlag('player-management')).toBe('playerManagement')
-    expect(scopeToFlag('role-management')).toBe('roleManagement')
+const perms: PermissionSet = {
+  grants: {
+    'Strike Tournament': ['admin', 'fleet:join', 'user_kick'],
+    Strike: ['fleet:join', 'fleet:read', 'station_config:read', 'station_config:write']
+  },
+  discoveredAt: 1
+}
+
+describe('per-fleet permission model', () => {
+  it('admin grants every scope within its fleet', () => {
+    expect(hasScope(perms, 'user_ban:write', 'Strike Tournament')).toBe(true)
+    expect(hasScope(perms, 'station_config:write', 'Strike Tournament')).toBe(true)
   })
-  it('returns null for unknown / none', () => {
-    expect(scopeToFlag('none')).toBeNull()
-    expect(scopeToFlag('nonsense')).toBeNull()
+
+  it('non-admin fleets only grant listed scopes', () => {
+    expect(hasScope(perms, 'station_config:write', 'Strike')).toBe(true)
+    expect(hasScope(perms, 'user_ban:write', 'Strike')).toBe(false)
+  })
+
+  it('without a fleetId, any fleet granting the scope suffices', () => {
+    expect(hasScope(perms, 'station_config:write')).toBe(true)
+    // admin in Strike Tournament satisfies arbitrary scopes fleet-agnostically
+    expect(hasScope(perms, 'user_ban:revoke')).toBe(true)
+  })
+
+  it('unknown fleetId falls back to any-fleet check (stations do not name their fleet)', () => {
+    expect(hasScope(perms, 'fleet:read', 'SomeOtherFleet')).toBe(true)
+  })
+
+  it('fleetHasScope treats admin as wildcard', () => {
+    expect(fleetHasScope(['admin'], 'anything:at all')).toBe(true)
+    expect(fleetHasScope(['fleet:read'], 'fleet:write')).toBe(false)
+  })
+
+  it('EMPTY_PERMISSIONS is undiscovered and denies nothing implicitly', () => {
+    expect(isDiscovered(EMPTY_PERMISSIONS)).toBe(false)
+    expect(hasScope(EMPTY_PERMISSIONS, 'fleet:read')).toBe(false)
+  })
+
+  it('isDiscovered rejects legacy/degenerate shapes', () => {
+    expect(isDiscovered(undefined)).toBe(false)
+    expect(isDiscovered({ grants: {}, discoveredAt: 5 })).toBe(false)
+    // legacy flat shape from an older version: no grants key
+    expect(isDiscovered({ discoveredAt: 5 } as unknown as PermissionSet)).toBe(false)
   })
 })
 
-describe('EMPTY_PERMISSIONS', () => {
-  it('is fully denied and undiscovered', () => {
-    expect(EMPTY_PERMISSIONS.read).toBe(false)
-    expect(EMPTY_PERMISSIONS.write).toBe(false)
-    expect(EMPTY_PERMISSIONS.discoveredAt).toBe(0)
+describe('parseGrants', () => {
+  it('parses a fleet->scopes map', () => {
+    expect(parseGrants({ permissions: { A: ['fleet:read'], B: ['admin'] } })).toEqual({
+      A: ['fleet:read'],
+      B: ['admin']
+    })
+  })
+
+  it('parses an array of fleet objects', () => {
+    expect(
+      parseGrants({ fleets: [{ name: 'A', permissions: ['fleet:read', 'user_kick'] }] })
+    ).toEqual({ A: ['fleet:read', 'user_kick'] })
+  })
+
+  it('parses a flat scope list under a wildcard fleet', () => {
+    expect(parseGrants({ scopes: ['fleet:read'] })).toEqual({ '*': ['fleet:read'] })
+  })
+
+  it('returns null for garbage (must NOT produce a deny-all set)', () => {
+    expect(parseGrants(null)).toBeNull()
+    expect(parseGrants('nope')).toBeNull()
+    expect(parseGrants({ message: 'error' })).toBeNull()
   })
 })

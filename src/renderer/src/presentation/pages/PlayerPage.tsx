@@ -137,7 +137,7 @@ export default function PlayerPage() {
         wide
         footer={
           <>
-            <PermissionGate scope="moderation">
+            <PermissionGate scope="user_kick">
               <Button variant="danger" onClick={() => void handleKick()}>
                 <Zap size={14} /> Kick
               </Button>
@@ -157,7 +157,7 @@ export default function PlayerPage() {
                 <Shield size={14} /> Actions
               </h3>
 
-              <PermissionGate scope="moderation">
+              <PermissionGate scope="user_ban:write">
                 <Card>
                   <div className="space-y-3">
                     <Field label="Ban reason">
@@ -185,7 +185,7 @@ export default function PlayerPage() {
                 </Card>
               </PermissionGate>
 
-              <PermissionGate scope="role-management">
+              <PermissionGate scope="role:write">
                 <Card>
                   <div className="text-[13px]">
                     <p className="text-[var(--text-dim)] mb-2">Role assignment coming soon</p>

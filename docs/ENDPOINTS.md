@@ -1,6 +1,6 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-17T21:48:46.910Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T07:35:53.300Z._
 
 **21** endpoints registered · **0** verified · **21** unverified.
 
@@ -10,27 +10,27 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-17T21:48:46.9
 
 | Endpoint | Method | Path | Auth | Permission | Status |
 | --- | --- | --- | --- | --- | --- |
-| `auth.whoami` | GET | `/v1/me` | yes | read | unverified |
-| `permissions.summary` | GET | `/v1/permissions` | yes | read | unverified |
-| `fleet.list` | GET | `/v1/fleets` | yes | read | unverified |
-| `fleet.get` | GET | `/v1/fleets/:fleetId` | yes | read | unverified |
-| `station.list` | GET | `/v1/fleets/:fleetId/stations` | yes | read | unverified |
-| `station.get` | GET | `/v1/stations/:stationId` | yes | read | unverified |
-| `station.updateConfig` | PATCH | `/v1/stations/:stationId/config` | yes | write | unverified |
-| `board.get` | GET | `/v1/stations/:stationId/boards` | yes | customization | unverified |
-| `board.set` | PUT | `/v1/stations/:stationId/boards/:slotKey` | yes | customization | unverified |
-| `gamemode.list` | GET | `/v1/stations/:stationId/gamemodes` | yes | read | unverified |
-| `gamemode.setOverrides` | PUT | `/v1/stations/:stationId/gamemodes/:gamemodeKey` | yes | write | unverified |
-| `player.search` | GET | `/v1/players` | yes | player-management | unverified |
-| `player.get` | GET | `/v1/players/:playerId` | yes | player-management | unverified |
-| `roles.list` | GET | `/v1/roles` | yes | role-management | unverified |
-| `roles.assign` | POST | `/v1/players/:playerId/roles` | yes | role-management | unverified |
-| `moderation.ban` | POST | `/v1/moderation/bans` | yes | moderation | unverified |
-| `moderation.unban` | DELETE | `/v1/moderation/bans/:banId` | yes | moderation | unverified |
-| `moderation.kick` | POST | `/v1/stations/:stationId/kick` | yes | moderation | unverified |
-| `events.list` | GET | `/v1/stations/:stationId/events` | yes | events | unverified |
-| `matches.list` | GET | `/v1/stations/:stationId/matches` | yes | read | unverified |
-| `matches.get` | GET | `/v1/matches/:matchId` | yes | read | unverified |
+| `auth.whoami` | GET | `/v1/me` | yes | none | unverified |
+| `permissions.summary` | GET | `/v1/permissions` | yes | none | unverified |
+| `fleet.list` | GET | `/v1/fleets` | yes | fleet:read | unverified |
+| `fleet.get` | GET | `/v1/fleets/:fleetId` | yes | fleet:read | unverified |
+| `station.list` | GET | `/v1/fleets/:fleetId/stations` | yes | station:read | unverified |
+| `station.get` | GET | `/v1/stations/:stationId` | yes | station:read | unverified |
+| `station.updateConfig` | PATCH | `/v1/stations/:stationId/config` | yes | station_config:write | unverified |
+| `board.get` | GET | `/v1/stations/:stationId/boards` | yes | station_config:read | unverified |
+| `board.set` | PUT | `/v1/stations/:stationId/boards/:slotKey` | yes | custom_config:write | unverified |
+| `gamemode.list` | GET | `/v1/stations/:stationId/gamemodes` | yes | station_config:read | unverified |
+| `gamemode.setOverrides` | PUT | `/v1/stations/:stationId/gamemodes/:gamemodeKey` | yes | station_config:write | unverified |
+| `player.search` | GET | `/v1/players` | yes | user_data:read | unverified |
+| `player.get` | GET | `/v1/players/:playerId` | yes | user_data:read | unverified |
+| `roles.list` | GET | `/v1/roles` | yes | role:read | unverified |
+| `roles.assign` | POST | `/v1/players/:playerId/roles` | yes | role:write | unverified |
+| `moderation.ban` | POST | `/v1/moderation/bans` | yes | user_ban:write | unverified |
+| `moderation.unban` | DELETE | `/v1/moderation/bans/:banId` | yes | user_ban:revoke | unverified |
+| `moderation.kick` | POST | `/v1/stations/:stationId/kick` | yes | user_kick | unverified |
+| `events.list` | GET | `/v1/stations/:stationId/events` | yes | server_event:read | unverified |
+| `matches.list` | GET | `/v1/stations/:stationId/matches` | yes | station:read | unverified |
+| `matches.get` | GET | `/v1/matches/:matchId` | yes | station:read | unverified |
 
 ## auth
 
@@ -40,7 +40,7 @@ Returns the identity/owner associated with the authenticated API key.
 
 - **Method / Path:** `GET /v1/me`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** none
 - **Status:** unverified
 - **Example response:**
 
@@ -62,24 +62,25 @@ Lists the scopes, fleets, and stations the authenticated key can access.
 
 - **Method / Path:** `GET /v1/permissions`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** none
 - **Status:** unverified
 - **Example response:**
 
   ```json
   {
-    "scopes": [
-      "read",
-      "write",
-      "moderation"
-    ],
-    "fleets": [
-      "flt_1"
-    ],
-    "stations": [
-      "stn_1",
-      "stn_2"
-    ]
+    "permissions": {
+      "Strike Tournament": [
+        "admin",
+        "fleet:join",
+        "user_kick"
+      ],
+      "Strike": [
+        "fleet:join",
+        "fleet:read",
+        "station_config:read",
+        "station_config:write"
+      ]
+    }
   }
   ```
 - **Status codes:** `200` OK, `401` Unauthorized, `403` Forbidden
@@ -93,7 +94,7 @@ All fleets accessible to the authenticated key.
 
 - **Method / Path:** `GET /v1/fleets`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** fleet:read
 - **Status:** unverified
 - **Example response:**
 
@@ -116,7 +117,7 @@ Details for a single fleet.
 
 - **Method / Path:** `GET /v1/fleets/:fleetId`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** fleet:read
 - **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
@@ -131,7 +132,7 @@ Stations belonging to a fleet.
 
 - **Method / Path:** `GET /v1/fleets/:fleetId/stations`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** station:read
 - **Status:** unverified
 - **Fleet-scoped**
 - **Parameters:**
@@ -157,7 +158,7 @@ Full detail + live status for a single station.
 
 - **Method / Path:** `GET /v1/stations/:stationId`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** station:read
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -170,7 +171,7 @@ Writes the full/partial config object for a station.
 
 - **Method / Path:** `PATCH /v1/stations/:stationId/config`
 - **Auth required:** yes
-- **Permission scope:** write
+- **Permission scope:** station_config:write
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -195,7 +196,7 @@ Current BoardTextureUrl values for every board slot on a station.
 
 - **Method / Path:** `GET /v1/stations/:stationId/boards`
 - **Auth required:** yes
-- **Permission scope:** customization
+- **Permission scope:** station_config:read
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -221,7 +222,7 @@ Sets the texture URL for one board slot.
 
 - **Method / Path:** `PUT /v1/stations/:stationId/boards/:slotKey`
 - **Auth required:** yes
-- **Permission scope:** customization
+- **Permission scope:** custom_config:write
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -244,7 +245,7 @@ Loaded gamemodes with arena keys and override parameters.
 
 - **Method / Path:** `GET /v1/stations/:stationId/gamemodes`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** station_config:read
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -257,7 +258,7 @@ Writes override parameter values for a gamemode.
 
 - **Method / Path:** `PUT /v1/stations/:stationId/gamemodes/:gamemodeKey`
 - **Auth required:** yes
-- **Permission scope:** write
+- **Permission scope:** station_config:write
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -282,7 +283,7 @@ Search players by name or id.
 
 - **Method / Path:** `GET /v1/players`
 - **Auth required:** yes
-- **Permission scope:** player-management
+- **Permission scope:** user_data:read
 - **Status:** unverified
 - **Parameters:**
   - `q` (query) — e.g. `nova`
@@ -294,7 +295,7 @@ A single player profile with roles and ban state.
 
 - **Method / Path:** `GET /v1/players/:playerId`
 - **Auth required:** yes
-- **Permission scope:** player-management
+- **Permission scope:** user_data:read
 - **Status:** unverified
 - **Parameters:**
   - `playerId` (path) — required — e.g. `ply_1`
@@ -308,7 +309,7 @@ All assignable roles.
 
 - **Method / Path:** `GET /v1/roles`
 - **Auth required:** yes
-- **Permission scope:** role-management
+- **Permission scope:** role:read
 - **Status:** unverified
 - **Notes:** Placeholder — not confirmed against a live server. Replace with a verified definition captured from the official dashboard.
 
@@ -318,7 +319,7 @@ Assigns a role to a player.
 
 - **Method / Path:** `POST /v1/players/:playerId/roles`
 - **Auth required:** yes
-- **Permission scope:** role-management
+- **Permission scope:** role:write
 - **Status:** unverified
 - **Parameters:**
   - `playerId` (path) — required — e.g. `ply_1`
@@ -339,7 +340,7 @@ Bans a player from a fleet/station.
 
 - **Method / Path:** `POST /v1/moderation/bans`
 - **Auth required:** yes
-- **Permission scope:** moderation
+- **Permission scope:** user_ban:write
 - **Status:** unverified
 - **Example request body:**
 
@@ -358,7 +359,7 @@ Removes a ban.
 
 - **Method / Path:** `DELETE /v1/moderation/bans/:banId`
 - **Auth required:** yes
-- **Permission scope:** moderation
+- **Permission scope:** user_ban:revoke
 - **Status:** unverified
 - **Parameters:**
   - `banId` (path) — required — e.g. `ban_1`
@@ -370,7 +371,7 @@ Kicks a player from their current session.
 
 - **Method / Path:** `POST /v1/stations/:stationId/kick`
 - **Auth required:** yes
-- **Permission scope:** moderation
+- **Permission scope:** user_kick
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -392,7 +393,7 @@ Recent server events for a station (polled).
 
 - **Method / Path:** `GET /v1/stations/:stationId/events`
 - **Auth required:** yes
-- **Permission scope:** events
+- **Permission scope:** server_event:read
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -408,7 +409,7 @@ Match history for a station.
 
 - **Method / Path:** `GET /v1/stations/:stationId/matches`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** station:read
 - **Status:** unverified
 - **Station-scoped**
 - **Parameters:**
@@ -421,7 +422,7 @@ Full detail for a single match, including player stats.
 
 - **Method / Path:** `GET /v1/matches/:matchId`
 - **Auth required:** yes
-- **Permission scope:** read
+- **Permission scope:** station:read
 - **Status:** unverified
 - **Parameters:**
   - `matchId` (path) — required — e.g. `mtc_1`
