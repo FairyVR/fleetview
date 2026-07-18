@@ -3,6 +3,7 @@ import { Rocket, RefreshCw, ChevronRight } from 'lucide-react'
 import type { Fleet } from '@shared/models'
 import { useEndpoint } from '../../services/useEndpoint'
 import { useSelectionStore } from '../../state/useSelectionStore'
+import { useAppStore } from '../../state/useAppStore'
 import { PageHeader, Button, Badge } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 
@@ -22,9 +23,23 @@ function asFleets(data: unknown): Fleet[] {
 }
 
 export default function FleetPage() {
-  const { response, loading, run } = useEndpoint('fleet.list', { auto: true })
+  const { response, loading, run } = useEndpoint('fleet.list', {
+    params: {
+      include_stations: true,
+      include_config: true,
+      include_offline_fleets: false,
+      page_size: 32,
+      page: 1
+    },
+    auto: true
+  })
+  const grants = useAppStore((s) => s.permissions.grants ?? {})
   const selectFleet = useSelectionStore((s) => s.selectFleet)
   const navigate = useNavigate()
+
+  // Probed scopes beyond the fleet:read baseline = the key actually works in this fleet.
+  const accessScopes = (fleetId: string): string[] =>
+    (grants[fleetId] ?? []).filter((s) => s !== 'fleet:read')
 
   function open(f: Fleet) {
     selectFleet(f.id, f.name)
@@ -40,7 +55,9 @@ export default function FleetPage() {
       />
       <RequestResult response={response} loading={loading} onRetry={() => void run()}>
         {(raw) => {
-          const fleets = asFleets(raw)
+          const fleets = asFleets(raw).sort(
+            (a, b) => accessScopes(b.id).length - accessScopes(a.id).length
+          )
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {fleets.map((f) => (
@@ -62,6 +79,9 @@ export default function FleetPage() {
                     {f.region && <Badge>{f.region}</Badge>}
                     {f.stationCount != null && <Badge tone="accent">{f.stationCount} stations</Badge>}
                     {f.permissionLevel && <Badge tone="good">{f.permissionLevel}</Badge>}
+                    {accessScopes(f.id).length > 0 && (
+                      <Badge tone="good">access · {accessScopes(f.id).join(', ')}</Badge>
+                    )}
                   </div>
                 </button>
               ))}

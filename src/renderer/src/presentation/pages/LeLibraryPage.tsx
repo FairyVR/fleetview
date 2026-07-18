@@ -23,6 +23,9 @@ export default function LeLibraryPage() {
   const [favOnly, setFavOnly] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Partial<LeConfig>>(BLANK)
+  // Raw text for the tags input — parsing on every keystroke would eat separator commas.
+  const [tagsText, setTagsText] = useState('')
+  const parseTags = (s: string) => s.split(',').map((t) => t.trim()).filter(Boolean)
   const [showHistory, setShowHistory] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -49,12 +52,14 @@ export default function LeLibraryPage() {
   function select(c: LeConfig) {
     setSelectedId(c.id)
     setDraft(c)
+    setTagsText((c.tags ?? []).join(', '))
     setShowHistory(false)
   }
 
   function newConfig() {
     setSelectedId(null)
     setDraft(BLANK)
+    setTagsText('')
     setShowHistory(false)
   }
 
@@ -65,7 +70,7 @@ export default function LeLibraryPage() {
       id: selectedId ?? undefined,
       name: draft.name,
       code: draft.code,
-      tags: draft.tags ?? []
+      tags: parseTags(tagsText)
     } as LeConfig)
     await refresh()
     select(saved)
@@ -187,8 +192,9 @@ export default function LeLibraryPage() {
               <Field label="Tags (comma separated)">
                 <input
                   className="input"
-                  value={(draft.tags ?? []).join(', ')}
-                  onChange={(e) => setDraft({ ...draft, tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
+                  value={tagsText}
+                  onChange={(e) => setTagsText(e.target.value)}
+                  onBlur={() => setDraft({ ...draft, tags: parseTags(tagsText) })}
                 />
               </Field>
             </div>
