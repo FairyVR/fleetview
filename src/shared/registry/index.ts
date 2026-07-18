@@ -31,6 +31,15 @@ export interface BuiltUrl {
 }
 
 /**
+ * Strip trailing slashes AND a trailing version segment from a stored base URL.
+ * Every registry path carries its own /vN prefix, so a base ending in /vN would
+ * double it (…/v2/v2/fleets → 404). Persisted settings can hold stale values.
+ */
+export function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, '').replace(/\/v\d+$/, '')
+}
+
+/**
  * Resolve an endpoint's path template against provided params.
  * Path `:tokens` are substituted; declared query params are appended.
  * Returns the path plus any required params that were missing (never throws).

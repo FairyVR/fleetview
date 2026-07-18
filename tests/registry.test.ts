@@ -1,4 +1,14 @@
 import { describe, it, expect } from 'vitest'
+import { normalizeBaseUrl } from '../src/shared/registry'
+
+describe('normalizeBaseUrl', () => {
+  it('strips trailing slashes and a stale version segment', () => {
+    expect(normalizeBaseUrl('https://api.oriondrift.net')).toBe('https://api.oriondrift.net')
+    expect(normalizeBaseUrl('https://api.oriondrift.net/')).toBe('https://api.oriondrift.net')
+    expect(normalizeBaseUrl('https://api.oriondrift.net/v2')).toBe('https://api.oriondrift.net')
+    expect(normalizeBaseUrl('https://api.oriondrift.net/v1/')).toBe('https://api.oriondrift.net')
+  })
+})
 import { buildUrl, searchEndpoints, getEndpoint, endpoints } from '../src/shared/registry'
 import type { EndpointDef } from '../src/shared/registry/types'
 

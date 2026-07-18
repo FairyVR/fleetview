@@ -7,7 +7,7 @@ import type {
   PermissionSet
 } from '@shared/models'
 import { hasScope, isDiscovered } from '@shared/models'
-import { getEndpoint, buildUrl } from '@shared/registry'
+import { getEndpoint, buildUrl, normalizeBaseUrl } from '@shared/registry'
 import { settingsStore, keysStore, permissionsStore } from './stores'
 import { readSecret } from './secure-storage'
 import { recordLog } from './logger'
@@ -137,7 +137,7 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
   if (permErr) return fail(permErr)
 
   // Build URL.
-  const baseUrl = settingsStore.get('baseUrl').replace(/\/+$/, '')
+  const baseUrl = normalizeBaseUrl(settingsStore.get('baseUrl'))
   const { path, missing } = buildUrl(endpoint, args.params)
   if (missing.length) {
     return fail({ kind: 'bad-response', message: `Missing required params: ${missing.join(', ')}` })
@@ -188,6 +188,10 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
       }
 
       const statusErr = errorForStatus(res.status, retryAfter)
+      // A 404 with no server detail is usually a wrong base URL — name the full URL.
+      if (statusErr && res.status === 404) {
+        statusErr.message = `Resource not found: ${endpoint.method} ${url}`
+      }
       // Surface the API's own error text ({detail, error_name}) — far more actionable
       // than "HTTP 401". e.g. "Couldn't decode API key: not a valid JWT".
       if (statusErr && data && typeof data === 'object') {
