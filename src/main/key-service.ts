@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { ApiKeyRecord, KeyHealth, PermissionSet } from '@shared/models'
 import { EMPTY_PERMISSIONS, parseGrants } from '@shared/models'
 import { keysStore, permissionsStore, settingsStore } from './stores'
-import { saveSecret, deleteSecret } from './secure-storage'
+import { saveSecret, deleteSecret, readSecret, looksLikeJwt } from './secure-storage'
 import { executeRequest } from './api-client'
 
 export function listKeys(): ApiKeyRecord[] {
@@ -68,9 +68,22 @@ function patchKey(keyId: string, patch: Partial<ApiKeyRecord>): void {
   }
 }
 
-/** Ping the identity endpoint to confirm the key authenticates. */
+/**
+ * Confirm the key authenticates. There is no /me endpoint on this API, so the fleet list
+ * (the lightest authenticated call) doubles as the identity/connectivity probe.
+ */
 export async function testKey(keyId: string): Promise<{ health: KeyHealth; message: string }> {
-  const res = await executeRequest({ endpointId: 'auth.whoami', keyId })
+  const res = await executeRequest({ endpointId: 'fleet.list', keyId })
+
+  // The API rejects non-JWT keys with a confusing decode error — name it plainly.
+  if (res.status === 401 && !looksLikeJwt(readSecret(keyId) ?? '')) {
+    patchKey(keyId, { health: 'invalid', lastValidatedAt: Date.now() })
+    return {
+      health: 'invalid',
+      message:
+        "This key isn't a valid Orion Drift API key. Keys are JWTs with three dot-separated parts (xxx.yyy.zzz) — copy the whole key from dashboard.oriondrift.net/account."
+    }
+  }
   let health: KeyHealth
   let message: string
   if (res.ok) {
@@ -96,7 +109,9 @@ export async function testKey(keyId: string): Promise<{ health: KeyHealth; messa
  * Instead the stored state stays unknown and the API client attempts requests normally.
  */
 export async function discoverPermissions(keyId: string): Promise<PermissionSet> {
-  const res = await executeRequest({ endpointId: 'permissions.summary', keyId })
+  // The API exposes no "my permissions" endpoint; the fleet list is what reveals which
+  // fleets the key can reach (and, when present, the caller's scopes on each).
+  const res = await executeRequest({ endpointId: 'fleet.list', keyId })
   const store = permissionsStore.get('perms')
 
   if (!res.ok) return store[keyId] ?? EMPTY_PERMISSIONS

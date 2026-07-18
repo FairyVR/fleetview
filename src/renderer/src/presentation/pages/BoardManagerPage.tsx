@@ -6,12 +6,31 @@ import { PageHeader, Card, Button, Badge, Field } from '../components/ui'
 import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
 
-/** Fallback slot layout so the manager is usable before a live board.get succeeds. */
+/** Fallback slot layout so the manager is usable before a live config fetch succeeds. */
 const DEFAULT_SLOTS: BoardSlot[] = Array.from({ length: 4 }, (_, i) => ({
   key: `BoardTextureUrl${i}`,
   name: `Board ${i}`,
   textureUrl: ''
 }))
+
+/**
+ * Board textures are not a separate endpoint — they are keys inside the station config
+ * object (BoardTextureUrl0, BoardTextureUrl1, …). Pull every matching key out of it.
+ */
+function slotsFromConfig(data: unknown): BoardSlot[] {
+  const d = data as Record<string, unknown> | null
+  if (!d || typeof d !== 'object') return []
+  // The config may be at the root or nested under `config`.
+  const cfg = (typeof d.config === 'object' && d.config !== null ? d.config : d) as Record<string, unknown>
+  const slots = Object.entries(cfg)
+    .filter(([k, v]) => /^BoardTextureUrl/i.test(k) && (typeof v === 'string' || v == null))
+    .map(([k, v]) => ({
+      key: k,
+      name: k.replace(/^BoardTextureUrl/i, 'Board ') || k,
+      textureUrl: typeof v === 'string' ? v : ''
+    }))
+  return slots.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }))
+}
 
 export default function BoardManagerPage() {
   return (
@@ -33,9 +52,9 @@ function BoardEditor({ stationId }: { stationId: string }) {
 
   async function load() {
     setLoading(true)
-    const res = await api.request<{ slots?: BoardSlot[] }>({ endpointId: 'board.get', params: { stationId } })
-    const fetched = res.data?.slots
-    const next = fetched && fetched.length ? fetched : DEFAULT_SLOTS
+    const res = await api.request({ endpointId: 'station.config.get', params: { stationId } })
+    const fetched = slotsFromConfig(res.data)
+    const next = fetched.length ? fetched : DEFAULT_SLOTS
     setSlots(next)
     setOriginal(next)
     setLoading(false)
@@ -49,15 +68,25 @@ function BoardEditor({ stationId }: { stationId: string }) {
     setSlots((s) => s.map((slot) => (slot.key === key ? { ...slot, textureUrl: url } : slot)))
   }
 
+  /** Writes the whole config patch — the API has no per-slot endpoint. */
+  async function writeConfig(patch: Record<string, string>) {
+    await api.request({
+      endpointId: 'station.config.set',
+      params: { stationId },
+      body: { config: patch }
+    })
+  }
+
   async function apply(slot: BoardSlot) {
-    await api.request({ endpointId: 'board.set', params: { stationId, slotKey: slot.key }, body: { textureUrl: slot.textureUrl } })
+    await writeConfig({ [slot.key]: slot.textureUrl })
     setSavedKey(slot.key)
     setTimeout(() => setSavedKey(''), 1200)
   }
 
   async function saveAll() {
     const changed = slots.filter((s) => s.textureUrl !== original.find((o) => o.key === s.key)?.textureUrl)
-    for (const slot of changed) await apply(slot)
+    if (!changed.length) return
+    await writeConfig(Object.fromEntries(changed.map((s) => [s.key, s.textureUrl])))
     setOriginal(slots)
   }
 

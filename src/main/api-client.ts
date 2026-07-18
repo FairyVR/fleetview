@@ -17,11 +17,12 @@ const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504])
 /** Sleep helper for backoff. */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** Turn a header map into a log-safe copy (mask Authorization). */
+/** Turn a header map into a log-safe copy (never log the raw key). */
+const SECRET_HEADERS = new Set(['authorization', 'x-api-key'])
 function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(headers)) {
-    out[k] = k.toLowerCase() === 'authorization' ? 'Bearer ***' : v
+    out[k] = SECRET_HEADERS.has(k.toLowerCase()) ? '***' : v
   }
   return out
 }
@@ -147,7 +148,8 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
   if (endpoint.requiresAuth && keyId) {
     const secret = readSecret(keyId)
     if (!secret) return fail({ kind: 'auth-expired', message: 'Stored key secret could not be read.' })
-    headers.Authorization = `Bearer ${secret}`
+    // Orion Drift authenticates with x-api-key (confirmed from the official dashboard client).
+    headers['x-api-key'] = secret
   }
   const hasBody = args.body !== undefined && endpoint.method !== 'GET'
   if (hasBody) headers['Content-Type'] = 'application/json'
@@ -184,6 +186,15 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
       }
 
       const statusErr = errorForStatus(res.status, retryAfter)
+      // Surface the API's own error text ({detail, error_name}) — far more actionable
+      // than "HTTP 401". e.g. "Couldn't decode API key: not a valid JWT".
+      if (statusErr && data && typeof data === 'object') {
+        const b = data as Record<string, unknown>
+        const detail = typeof b.detail === 'string' ? b.detail : undefined
+        const name = typeof b.error_name === 'string' ? b.error_name : undefined
+        const serverMsg = [name, detail].filter(Boolean).join(': ')
+        if (serverMsg) statusErr.message = serverMsg
+      }
 
       if (statusErr && RETRYABLE_STATUS.has(res.status) && retries < maxRetries) {
         lastError = statusErr

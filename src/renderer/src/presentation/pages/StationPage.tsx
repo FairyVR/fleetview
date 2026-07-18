@@ -7,17 +7,22 @@ import { RequestResult } from '../components/RequestResult'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
 
+/**
+ * There is no "list stations" endpoint — stations are embedded in the fleet object
+ * (GET /v1/fleets/{fleet_id} -> fleet.stations[]).
+ */
 function asStations(data: unknown, fleetId: string): Station[] {
-  const arr = Array.isArray(data) ? data : (data as { stations?: unknown[] })?.stations ?? []
+  const d = data as { fleet?: { stations?: unknown[] }; stations?: unknown[] } | unknown[]
+  const arr = Array.isArray(d) ? d : (d?.fleet?.stations ?? d?.stations ?? [])
   return (arr as Record<string, unknown>[]).map((s) => ({
-    id: String(s.id ?? s.stationId ?? ''),
+    id: String(s.station_id ?? s.id ?? ''),
     fleetId,
-    name: String(s.name ?? s.id ?? 'Unnamed station'),
+    name: String(s.station_name ?? s.name ?? s.station_id ?? 'Unnamed station'),
     region: s.region as string | undefined,
-    status: (s.status as Station['status']) ?? 'unknown',
+    status: s.online === true ? 'online' : s.online === false ? 'offline' : 'unknown',
     version: s.version as string | undefined,
-    sessionId: s.sessionId as string | undefined,
-    playerCount: s.playerCount as number | undefined,
+    sessionId: (s.session_id ?? s.sessionId) as string | undefined,
+    playerCount: (s.player_count ?? s.playerCount) as number | undefined,
     raw: s
   }))
 }
@@ -25,7 +30,7 @@ function asStations(data: unknown, fleetId: string): Station[] {
 export default function StationPage() {
   const { fleetId, fleetName, stationId, selectStation } = useSelectionStore()
   const navigate = useNavigate()
-  const { response, loading, run } = useEndpoint('station.list', {
+  const { response, loading, run } = useEndpoint('fleet.get', {
     params: fleetId ? { fleetId } : undefined,
     auto: !!fleetId,
     enabled: !!fleetId

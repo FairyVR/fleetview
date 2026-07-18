@@ -2,9 +2,9 @@ import Store from 'electron-store'
 import type { ApiKeyRecord, PermissionSet } from '@shared/models'
 import type { LeConfig, Preset } from '@shared/models'
 
-/** App settings. Base URL is intentionally a placeholder — set your real one. */
+/** App settings. */
 export interface Settings {
-  /** Base URL of the Orion Drift API. MUST be set to a real, verified host. */
+  /** Base URL of the Orion Drift API (verified from the official dashboard client). */
   baseUrl: string
   activeKeyId: string | null
   requestTimeoutMs: number
@@ -14,7 +14,7 @@ export interface Settings {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  baseUrl: 'https://api.orion-drift.example',
+  baseUrl: 'https://api.oriondrift.net',
   activeKeyId: null,
   requestTimeoutMs: 15000,
   maxRetries: 2,

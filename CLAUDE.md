@@ -3,10 +3,24 @@
 Desktop app (Electron + electron-vite + React 19 + TS + Tailwind v4) to manage Orion Drift
 fleets/stations through a **data-driven endpoint registry**.
 
+## The real API (do not re-derive)
+- Base URL `https://api.oriondrift.net`; auth header **`x-api-key`** (NOT Bearer).
+- Keys are JWTs (three dot-separated segments).
+- Permissions are granted **per fleet**; `admin` on a fleet = all scopes for that fleet.
+  Scope names are real strings like `fleet:read`, `station_config:write`, `user_ban:revoke`.
+- No `/me`, no kick, no match-history endpoint. Stations come from
+  `GET /v1/fleets/:fleetId` → `fleet.stations[]`. Board textures + gamemode overrides are
+  keys inside `GET|POST /v2/stations/:stationId/config`.
+- Field names are snake_case (`fleet_id`, `station_name`, `role_id`, `user_id`).
+- Full details + how it was discovered: `docs/API-DISCOVERY.md`.
+
 ## Ground rules
 - **Never hardcode an API URL outside the registry.** Add endpoints to
   `src/shared/registry/endpoints.ts`. Base URL lives in Settings only.
-- Placeholder endpoints are `status: 'unverified'`. Only mark `verified` after a live test.
+- Only mark an endpoint `verified` once its path/method/auth is confirmed.
+- **Never deny an action on unknown permissions.** A failed permission lookup must stay
+  *unknown* and let the server decide — persisting an empty "discovered" set caused a bug
+  that falsely blocked every action.
 - The renderer must never touch a raw API key. All HTTP + secrets stay in the main process;
   the renderer calls `window.api.*` (typed by `@shared/ipc`).
 

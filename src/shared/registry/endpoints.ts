@@ -1,80 +1,44 @@
 import type { EndpointDef } from './types'
 
 /**
- * Endpoint registry.
+ * Endpoint registry — Orion Drift API.
  *
- * IMPORTANT: These entries are UNVERIFIED placeholders. The real Orion Drift dashboard
- * API was not available to inspect, so no URL/method/shape here has been confirmed
- * against a live server. They exist so the app runs end-to-end and demonstrates the
- * shape a verified entry should take.
+ * Base URL: https://api.oriondrift.net   Auth header: `x-api-key: <key>`
  *
- * To add a real endpoint discovered from the official dashboard (see
- * docs/API-DISCOVERY.md): copy one of these, fill in the true path/method/params,
- * set `status: 'verified'`, and remove the placeholder note. Everything else in the app
- * updates automatically.
+ * Paths, methods, path params, auth scheme and the permission scope names below were
+ * extracted from the official dashboard's own API client (openapi-fetch) at
+ * dashboard.oriondrift.net, so they are `verified` for URL/method/auth. Response shapes
+ * are inferred from how the dashboard consumes them (`.data.roles`, `.data.items`, …) and
+ * may need tightening once observed live.
+ *
+ * Real API scoping (important):
+ *  - Fleet-scoped: roles, users/players, bans, reports, events, fleet config.
+ *  - Station-scoped: station detail + station config (board textures and gamemode
+ *    overrides live INSIDE the station config JSON — there is no separate boards or
+ *    gamemodes endpoint).
+ *  - Global: fleet list, user search.
+ * There is no kick or "match history" REST endpoint in the dashboard API.
  */
-const UNVERIFIED =
-  'Placeholder — not confirmed against a live server. Replace with a verified definition captured from the official dashboard.'
 
 export const endpoints: EndpointDef[] = [
-  // ── Auth / identity ────────────────────────────────────────────────
-  {
-    id: 'auth.whoami',
-    name: 'Who am I',
-    description: 'Returns the identity/owner associated with the authenticated API key.',
-    category: 'auth',
-    method: 'GET',
-    path: '/v1/me',
-    requiresAuth: true,
-    permission: 'none',
-    responseExample: { id: 'usr_123', name: 'ExampleOwner', platform: 'meta' },
-    statusCodes: { 200: 'OK', 401: 'Invalid or expired key' },
-    status: 'unverified',
-    notes: UNVERIFIED
-  },
-
-  // ── Permissions discovery ──────────────────────────────────────────
-  {
-    id: 'permissions.summary',
-    name: 'Permission summary',
-    description: 'Lists the scopes, fleets, and stations the authenticated key can access.',
-    category: 'permissions',
-    method: 'GET',
-    path: '/v1/permissions',
-    requiresAuth: true,
-    permission: 'none',
-    responseExample: {
-      permissions: {
-        'Strike Tournament': ['admin', 'fleet:join', 'user_kick'],
-        Strike: ['fleet:join', 'fleet:read', 'station_config:read', 'station_config:write']
-      }
-    },
-    statusCodes: { 200: 'OK', 401: 'Unauthorized', 403: 'Forbidden' },
-    status: 'unverified',
-    notes: UNVERIFIED
-  },
-
-  // ── Fleet ──────────────────────────────────────────────────────────
+  // ── Fleets ─────────────────────────────────────────────────────────
   {
     id: 'fleet.list',
     name: 'List fleets',
-    description: 'All fleets accessible to the authenticated key.',
+    description: 'All fleets the authenticated key can access (used to validate a key).',
     category: 'fleet',
     method: 'GET',
-    path: '/v1/fleets',
+    path: '/v2/fleets',
     requiresAuth: true,
     permission: 'fleet:read',
-    responseExample: [
-      { id: 'flt_1', name: 'Alpha Fleet', region: 'us-east', stationCount: 3 }
-    ],
-    statusCodes: { 200: 'OK', 401: 'Unauthorized' },
-    status: 'unverified',
-    notes: UNVERIFIED
+    responseExample: { fleets: [{ fleet_id: 'flt_1', fleet_name: 'Strike', stations: [] }] },
+    statusCodes: { 200: 'OK', 401: 'Invalid key', 403: 'Forbidden' },
+    status: 'verified'
   },
   {
     id: 'fleet.get',
-    name: 'Get fleet',
-    description: 'Details for a single fleet.',
+    name: 'Get fleet (with stations)',
+    description: 'Fleet detail. The response `fleet.stations[]` is the station list for the fleet.',
     category: 'fleet',
     method: 'GET',
     path: '/v1/fleets/:fleetId',
@@ -82,274 +46,411 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'fleet:read',
     fleetScoped: true,
-    status: 'unverified',
-    notes: UNVERIFIED
+    responseExample: {
+      fleet: {
+        fleet_id: 'flt_1',
+        fleet_name: 'Strike',
+        stations: [{ station_id: 'stn_1', station_name: 'Station One', online: true }]
+      }
+    },
+    status: 'verified'
   },
-
-  // ── Station ────────────────────────────────────────────────────────
   {
-    id: 'station.list',
-    name: 'List stations',
-    description: 'Stations belonging to a fleet.',
-    category: 'station',
-    method: 'GET',
-    path: '/v1/fleets/:fleetId/stations',
+    id: 'fleet.update',
+    name: 'Update fleet',
+    description: 'Patch fleet-level settings.',
+    category: 'fleet',
+    method: 'PATCH',
+    path: '/v1/fleets/:fleetId',
     params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
     requiresAuth: true,
-    permission: 'station:read',
+    permission: 'fleet:write',
     fleetScoped: true,
-    responseExample: [
-      { id: 'stn_1', name: 'Station One', status: 'online', playerCount: 4, version: '1.2.3' }
-    ],
-    status: 'unverified',
-    notes: UNVERIFIED
+    status: 'verified'
   },
+  {
+    id: 'fleet.config.get',
+    name: 'Get fleet config',
+    description: 'Fleet-level configuration object.',
+    category: 'config',
+    method: 'GET',
+    path: '/v1/fleets/:fleetId/config',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
+    requiresAuth: true,
+    permission: 'fleet_config:read',
+    fleetScoped: true,
+    status: 'verified'
+  },
+  {
+    id: 'fleet.config.set',
+    name: 'Set fleet config',
+    description: 'Write the fleet-level configuration object.',
+    category: 'config',
+    method: 'POST',
+    path: '/v1/fleets/:fleetId/config',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
+    requiresAuth: true,
+    permission: 'fleet_config:write',
+    fleetScoped: true,
+    status: 'verified'
+  },
+
+  // ── Stations ───────────────────────────────────────────────────────
   {
     id: 'station.get',
     name: 'Get station',
-    description: 'Full detail + live status for a single station.',
+    description: 'Live detail for a single station.',
     category: 'station',
     method: 'GET',
-    path: '/v1/stations/:stationId',
+    path: '/v2/stations/:stationId',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
     permission: 'station:read',
     stationScoped: true,
-    status: 'unverified',
-    notes: UNVERIFIED
+    status: 'verified'
   },
   {
-    id: 'station.updateConfig',
-    name: 'Update station config',
-    description: 'Writes the full/partial config object for a station.',
+    id: 'station.update',
+    name: 'Update station',
+    description: 'Patch station settings.',
     category: 'station',
     method: 'PATCH',
-    path: '/v1/stations/:stationId/config',
+    path: '/v1/stations/:stationId',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'station_config:write',
+    permission: 'station:write',
     stationScoped: true,
-    requestExample: { config: { maxPlayers: 8 } },
-    statusCodes: { 200: 'Saved', 403: 'Missing write permission', 422: 'Invalid config' },
-    status: 'unverified',
-    notes: UNVERIFIED
+    status: 'verified'
   },
-
-  // ── Board / customization ──────────────────────────────────────────
   {
-    id: 'board.get',
-    name: 'Get board textures',
-    description: 'Current BoardTextureUrl values for every board slot on a station.',
-    category: 'board',
+    id: 'station.config.get',
+    name: 'Get station config',
+    description:
+      'The full station config JSON. Board textures (BoardTextureUrl*) and gamemode overrides live inside this object.',
+    category: 'config',
     method: 'GET',
-    path: '/v1/stations/:stationId/boards',
+    path: '/v2/stations/:stationId/config',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
     permission: 'station_config:read',
     stationScoped: true,
-    responseExample: {
-      slots: [{ key: 'BoardTextureUrl0', name: 'Board 0', textureUrl: 'https://…/a.png' }]
-    },
-    status: 'unverified',
-    notes: UNVERIFIED
+    status: 'verified'
   },
   {
-    id: 'board.set',
-    name: 'Set board texture',
-    description: 'Sets the texture URL for one board slot.',
-    category: 'board',
-    method: 'PUT',
-    path: '/v1/stations/:stationId/boards/:slotKey',
-    params: [
-      { name: 'stationId', in: 'path', required: true, example: 'stn_1' },
-      { name: 'slotKey', in: 'path', required: true, example: 'BoardTextureUrl0' }
-    ],
-    requiresAuth: true,
-    permission: 'custom_config:write',
-    stationScoped: true,
-    requestExample: { textureUrl: 'https://…/new.png' },
-    status: 'unverified',
-    notes: UNVERIFIED
-  },
-
-  // ── Gamemode ───────────────────────────────────────────────────────
-  {
-    id: 'gamemode.list',
-    name: 'List gamemodes',
-    description: 'Loaded gamemodes with arena keys and override parameters.',
-    category: 'gamemode',
-    method: 'GET',
-    path: '/v1/stations/:stationId/gamemodes',
+    id: 'station.config.set',
+    name: 'Set station config',
+    description: 'Write the station config JSON (also how board textures / gamemode overrides are saved).',
+    category: 'config',
+    method: 'POST',
+    path: '/v2/stations/:stationId/config',
     params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
-    requiresAuth: true,
-    permission: 'station_config:read',
-    stationScoped: true,
-    status: 'unverified',
-    notes: UNVERIFIED
-  },
-  {
-    id: 'gamemode.setOverrides',
-    name: 'Set gamemode overrides',
-    description: 'Writes override parameter values for a gamemode.',
-    category: 'gamemode',
-    method: 'PUT',
-    path: '/v1/stations/:stationId/gamemodes/:gamemodeKey',
-    params: [
-      { name: 'stationId', in: 'path', required: true, example: 'stn_1' },
-      { name: 'gamemodeKey', in: 'path', required: true, example: 'deathmatch' }
-    ],
     requiresAuth: true,
     permission: 'station_config:write',
     stationScoped: true,
-    requestExample: { overrides: { scoreLimit: 25 } },
-    status: 'unverified',
-    notes: UNVERIFIED
-  },
-
-  // ── Player ─────────────────────────────────────────────────────────
-  {
-    id: 'player.search',
-    name: 'Search players',
-    description: 'Search players by name or id.',
-    category: 'player',
-    method: 'GET',
-    path: '/v1/players',
-    params: [{ name: 'q', in: 'query', required: false, example: 'nova' }],
-    requiresAuth: true,
-    permission: 'user_data:read',
-    status: 'unverified',
-    notes: UNVERIFIED
+    requestExample: { config: { BoardTextureUrl0: 'https://…/a.png' } },
+    status: 'verified'
   },
   {
-    id: 'player.get',
-    name: 'Get player',
-    description: 'A single player profile with roles and ban state.',
-    category: 'player',
-    method: 'GET',
-    path: '/v1/players/:playerId',
-    params: [{ name: 'playerId', in: 'path', required: true, example: 'ply_1' }],
+    id: 'station.config.delete',
+    name: 'Reset station config',
+    description: 'Delete/reset the station config override.',
+    category: 'config',
+    method: 'DELETE',
+    path: '/v2/stations/:stationId/config',
+    params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
-    permission: 'user_data:read',
-    status: 'unverified',
-    notes: UNVERIFIED
+    permission: 'station_config:write',
+    stationScoped: true,
+    status: 'verified'
   },
 
   // ── Roles ──────────────────────────────────────────────────────────
   {
     id: 'roles.list',
-    name: 'List roles',
-    description: 'All assignable roles.',
+    name: 'List fleet roles',
+    description: 'Roles for a fleet (use fleetId "global" for global roles).',
     category: 'roles',
     method: 'GET',
-    path: '/v1/roles',
+    path: '/v1/fleets/:fleetId/roles',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'global' }],
     requiresAuth: true,
     permission: 'role:read',
-    status: 'unverified',
-    notes: UNVERIFIED
+    fleetScoped: true,
+    responseExample: {
+      roles: [{ role_id: 'rol_1', role_name: 'Moderator', role_description: '', permissions: ['user_ban:write'] }]
+    },
+    status: 'verified'
+  },
+  {
+    id: 'roles.create',
+    name: 'Create role',
+    description: 'Create a role in a fleet.',
+    category: 'roles',
+    method: 'POST',
+    path: '/v1/fleets/:fleetId/roles',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
+    requiresAuth: true,
+    permission: 'role:write',
+    fleetScoped: true,
+    requestExample: { role_name: 'Moderator', role_description: '', permissions: ['user_ban:write'] },
+    status: 'verified'
+  },
+  {
+    id: 'roles.updatePermissions',
+    name: 'Set role permissions',
+    description: "Replace a role's permission list.",
+    category: 'roles',
+    method: 'PATCH',
+    path: '/v1/fleets/:fleetId/roles/:roleId/permissions',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'roleId', in: 'path', required: true, example: 'rol_1' }
+    ],
+    requiresAuth: true,
+    permission: 'role:write',
+    fleetScoped: true,
+    requestExample: { permissions: ['user_ban:write', 'user_kick'] },
+    status: 'verified'
+  },
+  {
+    id: 'roles.delete',
+    name: 'Delete role',
+    description: 'Delete a role from a fleet.',
+    category: 'roles',
+    method: 'DELETE',
+    path: '/v1/fleets/:fleetId/roles/:roleId',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'roleId', in: 'path', required: true, example: 'rol_1' }
+    ],
+    requiresAuth: true,
+    permission: 'role:write',
+    fleetScoped: true,
+    status: 'verified'
   },
   {
     id: 'roles.assign',
-    name: 'Assign role',
-    description: 'Assigns a role to a player.',
+    name: 'Assign role to user',
+    description: 'Grant a role to a user in a fleet.',
     category: 'roles',
     method: 'POST',
-    path: '/v1/players/:playerId/roles',
-    params: [{ name: 'playerId', in: 'path', required: true, example: 'ply_1' }],
+    path: '/v1/fleets/:fleetId/users/:userId/roles/:roleId',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'userId', in: 'path', required: true, example: 'usr_1' },
+      { name: 'roleId', in: 'path', required: true, example: 'rol_1' }
+    ],
     requiresAuth: true,
     permission: 'role:write',
-    requestExample: { roleId: 'rol_mod' },
-    status: 'unverified',
-    notes: UNVERIFIED
+    fleetScoped: true,
+    status: 'verified'
+  },
+  {
+    id: 'roles.unassign',
+    name: 'Remove role from user',
+    description: 'Revoke a role from a user in a fleet.',
+    category: 'roles',
+    method: 'DELETE',
+    path: '/v1/fleets/:fleetId/users/:userId/role/:roleId',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'userId', in: 'path', required: true, example: 'usr_1' },
+      { name: 'roleId', in: 'path', required: true, example: 'rol_1' }
+    ],
+    requiresAuth: true,
+    permission: 'role:write',
+    fleetScoped: true,
+    status: 'verified'
+  },
+
+  // ── Players / users ────────────────────────────────────────────────
+  {
+    id: 'player.search',
+    name: 'Search users (global)',
+    description: 'Global user search by name/id.',
+    category: 'player',
+    method: 'GET',
+    path: '/v1/user_search',
+    params: [{ name: 'search_string', in: 'query', required: false, example: 'nova' }],
+    requiresAuth: true,
+    permission: 'user_data:read',
+    responseExample: { items: [{ user_id: 'usr_1', display_name: 'Nova' }] },
+    status: 'verified'
+  },
+  {
+    id: 'player.listByFleet',
+    name: 'List fleet users',
+    description: 'Paged users in a fleet, with roles.',
+    category: 'player',
+    method: 'GET',
+    path: '/v3/fleets/:fleetId/users',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'search_string', in: 'query', required: false, example: 'nova' },
+      { name: 'page', in: 'query', required: false, example: 1 },
+      { name: 'page_size', in: 'query', required: false, example: 16 },
+      { name: 'include_roles', in: 'query', required: false, example: true }
+    ],
+    requiresAuth: true,
+    permission: 'user_data:read',
+    fleetScoped: true,
+    status: 'verified'
+  },
+  {
+    id: 'player.get',
+    name: 'Get fleet user',
+    description: 'A single user within a fleet, incl. roles.',
+    category: 'player',
+    method: 'GET',
+    path: '/v1/fleets/:fleetId/users/:userId',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'userId', in: 'path', required: true, example: 'usr_1' }
+    ],
+    requiresAuth: true,
+    permission: 'user_data:read',
+    fleetScoped: true,
+    status: 'verified'
+  },
+  {
+    id: 'player.bans',
+    name: 'Get user bans',
+    description: "A user's ban history within a fleet.",
+    category: 'moderation',
+    method: 'GET',
+    path: '/v1/fleets/:fleetId/users/:userId/bans',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'userId', in: 'path', required: true, example: 'usr_1' }
+    ],
+    requiresAuth: true,
+    permission: 'user_data:read',
+    fleetScoped: true,
+    status: 'verified'
   },
 
   // ── Moderation ─────────────────────────────────────────────────────
   {
+    id: 'moderation.bans',
+    name: 'List fleet bans',
+    description: 'All bans issued in a fleet.',
+    category: 'moderation',
+    method: 'GET',
+    path: '/v2/fleets/:fleetId/bans',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'include_revoked', in: 'query', required: false, example: true },
+      { name: 'include_expired', in: 'query', required: false, example: true }
+    ],
+    requiresAuth: true,
+    permission: 'user_data:read',
+    fleetScoped: true,
+    status: 'verified'
+  },
+  {
     id: 'moderation.ban',
-    name: 'Ban player',
-    description: 'Bans a player from a fleet/station.',
+    name: 'Ban user',
+    description: 'Ban a user in a fleet.',
     category: 'moderation',
     method: 'POST',
-    path: '/v1/moderation/bans',
+    path: '/v2/fleets/:fleetId/users/:userId/ban',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'userId', in: 'path', required: true, example: 'usr_1' }
+    ],
     requiresAuth: true,
     permission: 'user_ban:write',
-    requestExample: { playerId: 'ply_1', reason: 'cheating', durationHours: 24 },
-    status: 'unverified',
-    notes: UNVERIFIED
+    fleetScoped: true,
+    requestExample: { reason: 'cheating', duration_hours: 24 },
+    status: 'verified'
   },
   {
     id: 'moderation.unban',
-    name: 'Unban player',
-    description: 'Removes a ban.',
+    name: 'Unban user',
+    description: 'Revoke a ban for a user in a fleet.',
     category: 'moderation',
-    method: 'DELETE',
-    path: '/v1/moderation/bans/:banId',
-    params: [{ name: 'banId', in: 'path', required: true, example: 'ban_1' }],
+    method: 'PATCH',
+    path: '/v2/fleets/:fleetId/users/:userId/unban',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'userId', in: 'path', required: true, example: 'usr_1' }
+    ],
     requiresAuth: true,
     permission: 'user_ban:revoke',
-    status: 'unverified',
-    notes: UNVERIFIED
+    fleetScoped: true,
+    status: 'verified'
   },
+
+  // ── Reports ────────────────────────────────────────────────────────
   {
-    id: 'moderation.kick',
-    name: 'Kick player',
-    description: 'Kicks a player from their current session.',
+    id: 'reports.list',
+    name: 'List fleet reports',
+    description: 'Player reports filed in a fleet.',
     category: 'moderation',
-    method: 'POST',
-    path: '/v1/stations/:stationId/kick',
-    params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
+    method: 'GET',
+    path: '/v2/fleets/:fleetId/reports',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'limit', in: 'query', required: false, example: 1000 }
+    ],
     requiresAuth: true,
-    permission: 'user_kick',
-    stationScoped: true,
-    requestExample: { playerId: 'ply_1' },
-    status: 'unverified',
-    notes: UNVERIFIED
+    permission: 'fleet_report:read',
+    fleetScoped: true,
+    status: 'verified'
   },
 
   // ── Server events ──────────────────────────────────────────────────
   {
-    id: 'events.list',
-    name: 'List server events',
-    description: 'Recent server events for a station (polled).',
+    id: 'events.fleet',
+    name: 'Fleet server events',
+    description: 'Recent server events across a fleet (polled).',
     category: 'server-events',
     method: 'GET',
-    path: '/v1/stations/:stationId/events',
-    params: [
-      { name: 'stationId', in: 'path', required: true, example: 'stn_1' },
-      { name: 'since', in: 'query', required: false, example: 0 }
-    ],
+    path: '/v2/fleets/:fleetId/server_events',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
+    requiresAuth: true,
+    permission: 'server_event:read',
+    fleetScoped: true,
+    status: 'verified'
+  },
+  {
+    id: 'events.station',
+    name: 'Station server events',
+    description: 'Recent server events for a single station (polled).',
+    category: 'server-events',
+    method: 'GET',
+    path: '/v2/stations/:stationId/server_events',
+    params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
     requiresAuth: true,
     permission: 'server_event:read',
     stationScoped: true,
-    status: 'unverified',
-    notes: UNVERIFIED
+    status: 'verified'
   },
 
-  // ── Match history ──────────────────────────────────────────────────
+  // ── Fleet events (scheduled) ───────────────────────────────────────
   {
-    id: 'matches.list',
-    name: 'List matches',
-    description: 'Match history for a station.',
-    category: 'match-history',
+    id: 'fleetEvents.list',
+    name: 'List fleet events',
+    description: 'Scheduled events for a fleet.',
+    category: 'events',
     method: 'GET',
-    path: '/v1/stations/:stationId/matches',
-    params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
+    path: '/v2/fleets/:fleetId/events',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
     requiresAuth: true,
-    permission: 'station:read',
-    stationScoped: true,
-    status: 'unverified',
-    notes: UNVERIFIED
+    permission: 'server_event:read',
+    fleetScoped: true,
+    status: 'verified'
   },
   {
-    id: 'matches.get',
-    name: 'Get match',
-    description: 'Full detail for a single match, including player stats.',
-    category: 'match-history',
+    id: 'fleetEvents.get',
+    name: 'Get event',
+    description: 'A single scheduled event by id.',
+    category: 'events',
     method: 'GET',
-    path: '/v1/matches/:matchId',
-    params: [{ name: 'matchId', in: 'path', required: true, example: 'mtc_1' }],
+    path: '/v2/events/:eventId',
+    params: [{ name: 'eventId', in: 'path', required: true, example: 'evt_1' }],
     requiresAuth: true,
-    permission: 'station:read',
-    status: 'unverified',
-    notes: UNVERIFIED
+    permission: 'server_event:read',
+    status: 'verified'
   }
 ]

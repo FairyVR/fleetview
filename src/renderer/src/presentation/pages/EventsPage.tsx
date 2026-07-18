@@ -30,8 +30,8 @@ export default function EventsPage() {
 }
 
 function EventsViewer({ stationId }: { stationId: string }) {
-  const { data, response, loading, run } = useEndpoint<unknown>('events.list', {
-    params: { stationId, since: 0 },
+  const { data, response, loading, run } = useEndpoint<unknown>('events.station', {
+    params: { stationId },
     auto: true
   })
   const [autoRefresh, setAutoRefresh] = useState(false)

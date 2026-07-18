@@ -111,7 +111,7 @@ function EndpointDetail({ endpoint, baseUrl }: { endpoint: EndpointDef; baseUrl:
 
   const curl = [
     `curl -X ${endpoint.method} '${fullUrl}'`,
-    endpoint.requiresAuth ? `  -H 'Authorization: Bearer <API_KEY>'` : '',
+    endpoint.requiresAuth ? `  -H 'x-api-key: <API_KEY>'` : '',
     endpoint.requestExample ? `  -H 'Content-Type: application/json'` : '',
     endpoint.requestExample ? `  -d '${JSON.stringify(endpoint.requestExample)}'` : ''
   ]

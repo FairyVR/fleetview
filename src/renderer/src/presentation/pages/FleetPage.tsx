@@ -6,15 +6,17 @@ import { useSelectionStore } from '../../state/useSelectionStore'
 import { PageHeader, Button, Badge } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 
+/** Real API returns fleets with fleet_id/fleet_name and an embedded stations array. */
 function asFleets(data: unknown): Fleet[] {
-  const arr = Array.isArray(data) ? data : (data as { fleets?: unknown[] })?.fleets ?? []
+  const d = data as { fleets?: unknown[]; items?: unknown[] } | unknown[]
+  const arr = Array.isArray(d) ? d : (d?.fleets ?? d?.items ?? [])
   return (arr as Record<string, unknown>[]).map((f) => ({
-    id: String(f.id ?? f.fleetId ?? ''),
-    name: String(f.name ?? f.id ?? 'Unnamed fleet'),
+    id: String(f.fleet_id ?? f.id ?? ''),
+    name: String(f.fleet_name ?? f.name ?? f.fleet_id ?? 'Unnamed fleet'),
     description: f.description as string | undefined,
     region: f.region as string | undefined,
-    stationCount: f.stationCount as number | undefined,
-    permissionLevel: f.permissionLevel as string | undefined,
+    stationCount: Array.isArray(f.stations) ? f.stations.length : (f.station_count as number | undefined),
+    permissionLevel: Array.isArray(f.permissions) ? (f.permissions as string[]).join(', ') : undefined,
     raw: f
   }))
 }

@@ -78,7 +78,7 @@ export function parseGrants(data: unknown): Record<string, string[]> | null {
   )
   if (flat) return { '*': flat }
 
-  const candidates: unknown[] = [d.permissions, d.fleets, d.grants, data]
+  const candidates: unknown[] = [d.permissions, d.fleets, d.grants, d.items, data]
 
   for (const c of candidates) {
     // Array form: [{ fleet|fleetId|id|name, permissions|scopes: string[] }, …]
@@ -87,9 +87,9 @@ export function parseGrants(data: unknown): Record<string, string[]> | null {
       for (const item of c) {
         if (!item || typeof item !== 'object') continue
         const o = item as Record<string, unknown>
-        const key = [o.fleetId, o.fleet, o.id, o.name].find((v) => typeof v === 'string') as
-          | string
-          | undefined
+        const key = [o.fleet_name, o.fleet_id, o.fleetId, o.fleet, o.id, o.name].find(
+          (v) => typeof v === 'string'
+        ) as string | undefined
         const scopes = [o.permissions, o.scopes].find(Array.isArray) as unknown[] | undefined
         if (key && scopes) out[key] = scopes.map(String)
       }

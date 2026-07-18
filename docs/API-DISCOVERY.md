@@ -1,63 +1,105 @@
-# Capturing real Orion Drift endpoints
+# Orion Drift API — discovered contract
 
-FleetView ships with a registry of **unverified placeholder** endpoints. This guide explains
-how to replace them with real, verified definitions captured from the official dashboard —
-which is the intended path since no endpoint here has been confirmed against a live server.
+This documents the real API FleetView talks to, and how it was determined.
 
-> Only do this with an account and API key you are authorized to use. Capture traffic from
-> your own authenticated session.
+## The essentials
 
-## 1. Capture the traffic
+| | |
+| --- | --- |
+| **Base URL** | `https://api.oriondrift.net` |
+| **Auth header** | `x-api-key: <your key>` |
+| **Key format** | A **JWT** — three dot-separated segments (`xxx.yyy.zzz`) |
+| **Dashboard** | `https://dashboard.oriondrift.net` (account page: `/account`) |
+| **Anonymous call** | `403 {"detail":"Not authenticated"}` |
+| **Bad key** | `401 {"error_name":"Couldn't decode API key", ...}` |
 
-While signed into the official dashboard with an authorized account:
+> It is **not** `Authorization: Bearer`. Using Bearer will fail even with a valid key.
 
-1. Open your browser DevTools → **Network** tab.
-2. Filter to **Fetch/XHR**.
-3. Exercise the feature you want to map (open a fleet, edit a board, etc.).
-4. For each authenticated request, record:
-   - Request URL and HTTP method
-   - Required headers (esp. the `Authorization` scheme)
-   - Request body (if any)
-   - Response body and status code
+## How this was determined
 
-Right-click a request → **Copy → Copy as cURL** captures most of this at once.
+The dashboard is a SvelteKit app whose client bundles are public. No credentials or session
+data were used — only the publicly served JavaScript, plus unauthenticated probes.
 
-## 2. Add it to the registry
+1. Fetched `https://dashboard.oriondrift.net/` and followed its `_app/immutable/entry/*.js`
+   imports to download all ~106 chunks.
+2. The config chunk contains the host verbatim:
+   ```js
+   const n="3783906545031149", t="prod", s="https://api.oriondrift.net";
+   ```
+3. The API client wrapper reveals the auth scheme (an `openapi-fetch` client):
+   ```js
+   z({ baseUrl: I, headers: { "x-api-key": r.apiKey } })
+   ```
+4. Every endpoint appears as a typed call, e.g.
+   `Ne.GET("/v1/fleets/{fleet_id}/roles", { params:{ path:{ fleet_id } } })`.
+   Extracting all `.GET|POST|PUT|PATCH|DELETE("/…")` literals produced the endpoint list.
+5. Confirmed live with unauthenticated + invalid-key probes (see the table above), which
+   proved the host, the route, and that the server reads `x-api-key`.
 
-Open [`src/shared/registry/endpoints.ts`](../src/shared/registry/endpoints.ts) and append an
-entry. Split the full URL into the base (goes in **Settings → API base URL**) and the path.
+There is **no public OpenAPI schema** (`/openapi.json`, `/docs`, `/swagger.json` all 404).
+
+## Permission model
+
+Permissions are granted **per fleet**, not per account. Each fleet maps to a list of scope
+strings; **`admin` within a fleet grants every permission for that fleet**.
+
+Real scopes observed in the dashboard:
+
+```
+admin                    fleet:join               fleet:read               fleet:write
+fleet_config:read        fleet_config:write       fleet_report:read        fleet_report:write
+station:read             station:write            station:create           station:delete
+station_config:read      station_config:write     custom_config:write      config_netvars:write
+user_data:read           user_kick                user_permissions:read
+user_roles:read          user_roles:write         user_ban:write           user_ban:revoke
+user_ban:update          user_ban_short:write     user:create              user:delete
+role:read                role:write               record_entry:write
+server_event:read        server_event:write       station:key:create
+global:fleet:create      global:fleet:delete      global:key:create        global:key:delete
+global:user_data         self:key:create          self:fleet_report:read   self:fleet_report:write
+```
+
+Cosmetic/non-API flags also appear on accounts (`key_holder*`, `global_voip`,
+`anonymous_mode`, `color:*`) — these are not API scopes.
+
+**Rule:** never treat a failed permission lookup as "no permissions." There is no
+"my permissions" endpoint, so FleetView leaves permissions *unknown* and lets the server be
+the authority rather than falsely blocking actions.
+
+## Structural gotchas
+
+- **Stations have no list endpoint.** They are embedded in the fleet:
+  `GET /v1/fleets/{fleet_id}` → `fleet.stations[]` (`station_id`, `station_name`, `online`).
+- **Board textures and gamemode overrides are not endpoints.** They are keys inside the
+  station config object (`BoardTextureUrl0`, …) read/written via
+  `GET|POST /v2/stations/{station_id}/config`.
+- **There is no kick endpoint** and **no match-history endpoint** in the dashboard API.
+- Field names are `snake_case`: `fleet_id`, `fleet_name`, `station_id`, `station_name`,
+  `role_id`, `role_name`, `permissions[]`, `user_id`, `ban_id`.
+- Versions are mixed per route (`/v1`, `/v2`, `/v3`) — copy them exactly.
+- Use `fleet_id: "global"` for global roles.
+
+## Adding an endpoint
+
+Append one object to [`src/shared/registry/endpoints.ts`](../src/shared/registry/endpoints.ts):
 
 ```ts
 {
-  id: 'fleet.list',                 // stable, dot-namespaced
+  id: 'fleet.list',
   name: 'List fleets',
-  description: 'All fleets accessible to the authenticated key.',
+  description: 'All fleets the authenticated key can access.',
   category: 'fleet',
   method: 'GET',
-  path: '/v1/fleets',               // path only — base URL comes from Settings
+  path: '/v2/fleets',        // path only — base URL comes from Settings
   requiresAuth: true,
-  permission: 'read',               // maps to the UI permission gate
-  responseExample: [ /* paste a trimmed real response */ ],
-  statusCodes: { 200: 'OK', 401: 'Unauthorized' },
-  status: 'verified'                // <-- mark verified, drop the placeholder note
+  permission: 'fleet:read',  // real scope name; gates the UI
+  status: 'verified'
 }
 ```
 
-Use `:token` in the path for path params and declare them in `params` (`in: 'path'`).
-Declare query params with `in: 'query'`.
+Path params use `:token` (declare each in `params` with `in: 'path'`). The token name is
+internal — it only has to match the key you pass from a page.
 
-## 3. That's it
-
-Everything else updates automatically:
-
-- **Endpoint Explorer** lists and tests it.
-- **Dev Mode** logs every call to it.
-- Any page using `useEndpoint('<id>')` can call it.
-- `npm run gen:docs` regenerates [`ENDPOINTS.md`](ENDPOINTS.md).
-
-## Where verification happens
-
-The app never hardcodes a URL outside the registry. The base URL is set once in Settings and
-combined with each endpoint's `path` by `buildUrl()` in
-[`src/shared/registry/index.ts`](../src/shared/registry/index.ts). Set `status: 'verified'`
-only after a successful live **Test** in the Endpoint Explorer.
+Everything else updates automatically: the Endpoint Explorer lists and tests it, Dev Mode
+logs it, `useEndpoint('<id>')` can call it, and `npm run gen:docs` regenerates
+[`ENDPOINTS.md`](ENDPOINTS.md).

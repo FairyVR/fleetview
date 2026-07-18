@@ -6,18 +6,31 @@ with near-zero code changes.
 
 > **Status:** Foundation + core modules. See [Honest scope](#honest-scope) below.
 
+## The API
+
+| | |
+| --- | --- |
+| **Base URL** | `https://api.oriondrift.net` |
+| **Auth** | `x-api-key: <key>` (**not** `Authorization: Bearer`) |
+| **Key format** | a JWT — three dot-separated segments |
+
+These were recovered from the official dashboard's own public client bundles and confirmed
+with live probes — see [`docs/API-DISCOVERY.md`](docs/API-DISCOVERY.md) for the full method,
+the complete permission-scope list, and the structural gotchas.
+
 ## Why a registry, not hardcoded URLs
 
-The original brief asked me to reverse-engineer the official dashboard's endpoints by
-inspecting an authorized session. I did **not** have the referenced API documentation or an
-authorized account/key to inspect, so I refused to fabricate endpoint URLs and pass them off
-as "verified." Instead every endpoint lives as **data** in
-[`src/shared/registry/endpoints.ts`](src/shared/registry/endpoints.ts). Add a real,
-verified endpoint there and the typed client, the Endpoint Explorer, the Dev Mode logger,
-and the generated Markdown docs all pick it up automatically — no per-endpoint plumbing.
+Every endpoint lives as **data** in
+[`src/shared/registry/endpoints.ts`](src/shared/registry/endpoints.ts). Add one entry and the
+typed client, the Endpoint Explorer, the Dev Mode logger, and the generated Markdown docs all
+pick it up automatically — no per-endpoint plumbing.
 
-See [`docs/API-DISCOVERY.md`](docs/API-DISCOVERY.md) for how to capture real endpoints and
-add them to the registry.
+## Permissions
+
+Orion Drift grants permissions **per fleet**, and `admin` on a fleet grants everything for
+that fleet. Since the API exposes no "my permissions" endpoint, FleetView treats permissions
+as *unknown* rather than denied when it can't discover them — the server stays the authority,
+so the UI never falsely blocks an action you're actually allowed to perform.
 
 ## Architecture
 

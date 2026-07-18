@@ -44,7 +44,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const settings = useAppStore((s) => s.settings)
   const baseUrl = settings?.baseUrl ?? ''
-  const placeholderBase = baseUrl.includes('example')
+  // The real host is https://api.oriondrift.net; flag anything unset/obviously wrong.
+  const placeholderBase = !baseUrl || baseUrl.includes('example')
 
   return (
     <div className="grid grid-cols-[248px_1fr] h-screen">
@@ -100,7 +101,7 @@ export function Layout({ children }: { children: ReactNode }) {
               style={{ background: placeholderBase ? 'var(--warn)' : 'var(--good)' }}
             />
             {baseUrl || 'no base URL set'}
-            {placeholderBase && <span className="text-[var(--warn)]">· placeholder — set in Settings</span>}
+            {placeholderBase && <span className="text-[var(--warn)]">· not set — configure in Settings</span>}
           </div>
           <KeySwitcher />
         </header>

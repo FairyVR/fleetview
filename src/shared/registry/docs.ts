@@ -14,8 +14,14 @@ export function renderMarkdown(defs: EndpointDef[], generatedAt = new Date()): s
   )
   lines.push('')
   lines.push(
-    '> Unverified endpoints are placeholders; their URL/method/shape have not been confirmed against a live server. See `docs/API-DISCOVERY.md`.'
+    '> Base URL `https://api.oriondrift.net` · auth header `x-api-key`. See `docs/API-DISCOVERY.md`.'
   )
+  if (defs.length - verified > 0) {
+    lines.push('>')
+    lines.push(
+      "> Unverified entries are placeholders whose URL/method/shape haven't been confirmed."
+    )
+  }
   lines.push('')
 
   lines.push('## Summary')

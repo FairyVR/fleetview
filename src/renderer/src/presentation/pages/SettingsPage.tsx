@@ -36,12 +36,12 @@ export default function SettingsPage() {
             className="input mono"
             value={draft.baseUrl}
             onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })}
-            placeholder="https://api.orion-drift…"
+            placeholder="https://api.oriondrift.net"
           />
-          {draft.baseUrl.includes('example') && (
+          {draft.baseUrl.trim() !== 'https://api.oriondrift.net' && (
             <span className="text-[12px] text-[var(--warn)] mt-1.5 inline-block">
-              This is a placeholder host. Set the real, verified Orion Drift API base URL for
-              requests to succeed.
+              The official Orion Drift API host is <code className="mono">https://api.oriondrift.net</code>
+              {' '}(verified from the dashboard client). Requests will fail against anything else.
             </span>
           )}
         </Field>

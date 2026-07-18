@@ -49,6 +49,14 @@ export function deleteSecret(keyId: string): void {
   secretsStore.set('secrets', secrets)
 }
 
+/**
+ * Orion Drift API keys are JWTs (header.payload.signature). Catch obviously malformed
+ * pastes before they turn into a confusing 401 from the server.
+ */
+export function looksLikeJwt(secret: string): boolean {
+  return secret.trim().split('.').length === 3
+}
+
 /** e.g. "od_live_ab…9f2a" — enough to disambiguate without revealing the key. */
 export function maskSecret(secret: string): string {
   if (secret.length <= 8) return '…'.padStart(secret.length, '•')

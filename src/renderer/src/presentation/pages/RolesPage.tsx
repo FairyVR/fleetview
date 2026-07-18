@@ -1,25 +1,47 @@
 import { useState } from 'react'
 import { Shield, RefreshCw, Send } from 'lucide-react'
-import type { Role } from '@shared/models'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
 import { PageHeader, Card, Button, Badge, Field } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
+import { FleetScoped } from '../components/FleetScoped'
+
+interface Role {
+  id: string
+  name: string
+  description?: string
+  permissions: string[]
+}
 
 function asRoles(data: unknown): Role[] {
   const arr = Array.isArray(data) ? data : (data as { roles?: unknown[] })?.roles ?? []
   return (arr as Record<string, unknown>[]).map((r) => ({
-    id: String(r.id ?? r.roleId ?? ''),
-    name: String(r.name ?? r.id ?? 'Unknown'),
-    permissions: Array.isArray(r.permissions) ? (r.permissions as string[]) : undefined,
-    raw: r
+    id: String(r.role_id ?? r.id ?? ''),
+    name: String(r.role_name ?? r.name ?? 'Unknown'),
+    description: (r.role_description ?? r.description) as string | undefined,
+    permissions: Array.isArray(r.permissions) ? (r.permissions as string[]) : []
   }))
 }
 
 export default function RolesPage() {
-  const { data, response, loading, run } = useEndpoint<unknown>('roles.list', { auto: true })
-  const [playerId, setPlayerId] = useState('')
+  return (
+    <div>
+      <PageHeader
+        title="Roles"
+        subtitle="Manage user roles and permissions."
+      />
+      <FleetScoped>{(fleetId) => <RolesEditor fleetId={fleetId} />}</FleetScoped>
+    </div>
+  )
+}
+
+function RolesEditor({ fleetId }: { fleetId: string }) {
+  const { data, response, loading, run } = useEndpoint<unknown>('roles.list', {
+    params: { fleetId },
+    auto: true
+  })
+  const [userId, setUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState('')
   const [assigning, setAssigning] = useState(false)
   const [lastResult, setLastResult] = useState<{ ok: boolean; message: string } | null>(null)
@@ -27,21 +49,20 @@ export default function RolesPage() {
   const roles = asRoles(data)
 
   async function handleAssign() {
-    if (!playerId.trim() || !selectedRole.trim()) return
+    if (!userId.trim() || !selectedRole.trim()) return
 
     setAssigning(true)
     try {
       const res = await api.request({
         endpointId: 'roles.assign',
-        params: { playerId },
-        body: { roleId: selectedRole }
+        params: { fleetId, userId, roleId: selectedRole }
       })
       setLastResult({
         ok: res.ok,
-        message: res.ok ? `Role assigned to ${playerId}` : 'Failed to assign role'
+        message: res.ok ? `Role assigned to ${userId}` : 'Failed to assign role'
       })
       if (res.ok) {
-        setPlayerId('')
+        setUserId('')
         setSelectedRole('')
       }
       setTimeout(() => setLastResult(null), 2000)
@@ -52,11 +73,9 @@ export default function RolesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Roles"
-        subtitle="Manage user roles and permissions."
-        actions={<Button onClick={() => void run()}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</Button>}
-      />
+      <div className="flex items-center mb-4">
+        <Button onClick={() => void run()}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</Button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <RequestResult response={response} loading={loading} onRetry={() => void run()}>
@@ -73,7 +92,10 @@ export default function RolesPage() {
                       </div>
                     </div>
                   </div>
-                  {role.permissions && role.permissions.length > 0 ? (
+                  {role.description && (
+                    <p className="text-[12px] text-[var(--text-dim)] mb-2">{role.description}</p>
+                  )}
+                  {role.permissions.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {role.permissions.map((perm) => (
                         <Badge key={perm} tone="accent">
@@ -96,12 +118,12 @@ export default function RolesPage() {
               <Shield size={16} /> Assign Role
             </div>
             <div className="space-y-3">
-              <Field label="Player ID">
+              <Field label="User ID">
                 <input
                   className="input"
-                  placeholder="Player ID…"
-                  value={playerId}
-                  onChange={(e) => setPlayerId(e.target.value)}
+                  placeholder="User ID…"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
                 />
               </Field>
 
@@ -123,7 +145,7 @@ export default function RolesPage() {
               <Button
                 variant="primary"
                 onClick={() => void handleAssign()}
-                disabled={!playerId.trim() || !selectedRole.trim() || assigning}
+                disabled={!userId.trim() || !selectedRole.trim() || assigning}
                 className="w-full justify-center"
               >
                 <Send size={13} /> Assign
