@@ -1,10 +1,14 @@
-import { RefreshCw, Server, Users, Cpu, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { RefreshCw, Server, Users, Cpu, CheckCircle2, Save, Braces } from 'lucide-react'
 import type { Station } from '@shared/models'
+import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
 import { useSelectionStore } from '../../state/useSelectionStore'
 import { useAppStore } from '../../state/useAppStore'
 import { PageHeader, Card, Button, Badge, StatusDot, EmptyState } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
+import { PermissionGate } from '../components/PermissionGate'
+import { JsonEditor, validateJson } from '../components/JsonEditor'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
 
@@ -112,6 +116,67 @@ export default function StationPage() {
           )
         }}
       </RequestResult>
+
+      {stationId && <StationConfigJson key={stationId} stationId={stationId} />}
     </div>
+  )
+}
+
+/** Raw, editable view of the selected station's config JSON — the power-user path. */
+function StationConfigJson({ stationId }: { stationId: string }) {
+  const { response, loading, run } = useEndpoint<unknown>('station.config.get', {
+    params: { stationId },
+    auto: true
+  })
+  const [text, setText] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [note, setNote] = useState<{ tone: 'good' | 'bad'; msg: string } | null>(null)
+
+  useEffect(() => {
+    if (response?.data !== undefined && response?.ok) {
+      const cfg = (response.data as { config?: unknown } | null)?.config ?? response.data
+      setText(JSON.stringify(cfg ?? {}, null, 2))
+    }
+  }, [response])
+
+  const invalid = validateJson(text)
+
+  async function save() {
+    if (invalid || !text.trim()) return
+    setSaving(true)
+    setNote(null)
+    try {
+      const res = await api.request({
+        endpointId: 'station.config.set',
+        params: { stationId },
+        body: { config: JSON.parse(text) }
+      })
+      setNote(res.ok ? { tone: 'good', msg: 'Config saved.' } : { tone: 'bad', msg: res.error?.message ?? `HTTP ${res.status}` })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card className="mt-4">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <Braces size={15} className="text-[var(--accent)]" />
+        <span className="font-medium text-[13px]">Station config (raw JSON)</span>
+        {invalid && <Badge tone="bad">{invalid}</Badge>}
+        {note && <Badge tone={note.tone}>{note.msg}</Badge>}
+        <div className="flex-1" />
+        <Button onClick={() => void run()} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reload
+        </Button>
+        <PermissionGate scope="station_config:write">
+          <Button variant="primary" onClick={() => void save()} disabled={!!invalid || saving || loading}>
+            <Save size={13} /> Save JSON
+          </Button>
+        </PermissionGate>
+      </div>
+      <RequestResult response={response} loading={loading} onRetry={() => void run()}>
+        {() => <JsonEditor value={text} onChange={setText} height={380} />}
+      </RequestResult>
+    </Card>
   )
 }
