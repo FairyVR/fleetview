@@ -31,8 +31,7 @@ function KeySwitcher() {
           {keys.length === 0 && <option value="">No keys — add one</option>}
           {keys.map((k) => (
             <option key={k.id} value={k.id}>
-              {k.name}
-              {k.owner ? ` · ${k.owner}` : ''}
+              {k.owner || k.name}
             </option>
           ))}
         </select>

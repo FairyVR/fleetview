@@ -101,7 +101,7 @@ export default function KeysPage() {
   }
 
   async function add() {
-    if (!secret.trim()) return
+    if (!secret.trim() || !owner.trim()) return
     await api.addKey({ name, owner, secret })
     setName('')
     setOwner('')
@@ -215,7 +215,7 @@ export default function KeysPage() {
         footer={
           <>
             <Button onClick={() => setAdding(false)}>Cancel</Button>
-            <Button variant="primary" disabled={!secret.trim()} onClick={() => void add()}>
+            <Button variant="primary" disabled={!secret.trim() || !owner.trim()} onClick={() => void add()}>
               Add key
             </Button>
           </>
@@ -225,7 +225,7 @@ export default function KeysPage() {
           <Field label="Name">
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Alpha admin" />
           </Field>
-          <Field label="Owner (optional)">
+          <Field label="Owner">
             <input className="input" value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="who this key belongs to" />
           </Field>
           <Field label="API key secret">

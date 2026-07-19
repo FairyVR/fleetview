@@ -9,7 +9,7 @@ import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { asBans, type Ban } from '../../lib/bans'
 import { ago } from '../../lib/format'
-import { onlineNames } from '../../lib/presence'
+import { presence } from '../../lib/presence'
 import { useAppStore } from '../../state/useAppStore'
 
 interface Player {
@@ -58,8 +58,7 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
     params: { fleetId },
     auto: true
   })
-  const online = onlineNames(eventsData)
-  const presenceKnown = online.size > 0
+  const { known: presenceKnown, online } = presence(eventsData)
   const [detailOpen, setDetailOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const [banReason, setBanReason] = useState('')
