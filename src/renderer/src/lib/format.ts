@@ -18,6 +18,13 @@ export function prettyJson(value: unknown): string {
   }
 }
 
+export function regionLabel(region: string): string {
+  if (region.startsWith('ap-southeast')) return 'Oceania'
+  if (region.startsWith('us-east')) return 'North American'
+  if (region.startsWith('eu-central')) return 'European'
+  return region
+}
+
 export function ms(n: number): string {
   return `${Math.round(n)} ms`
 }

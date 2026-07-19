@@ -6,6 +6,7 @@ import { useSelectionStore } from '../../state/useSelectionStore'
 import { useAppStore } from '../../state/useAppStore'
 import { PageHeader, Button, Badge } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
+import { regionLabel } from '../../lib/format'
 
 /** Real API returns fleets with fleet_id/fleet_name and an embedded stations array. */
 function asFleets(data: unknown): Fleet[] {
@@ -82,7 +83,7 @@ export default function FleetPage() {
                   </div>
                   {f.description && <p className="text-[12px] text-[var(--text-dim)] mt-2">{f.description}</p>}
                   <div className="flex flex-wrap gap-1.5 mt-3">
-                    {f.region && <Badge>{f.region}</Badge>}
+                    {f.region && <Badge>{regionLabel(f.region)}</Badge>}
                     {f.stationCount != null && <Badge tone="accent">{f.stationCount} stations</Badge>}
                     {f.permissionLevel && <Badge tone="good">{f.permissionLevel}</Badge>}
                     {accessScopes(f.id).length > 0 && (

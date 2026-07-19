@@ -10,6 +10,7 @@ import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { JsonEditor, validateJson } from '../components/JsonEditor'
 import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
+import { regionLabel } from '../../lib/format'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
 
@@ -98,7 +99,7 @@ export default function StationPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-3">
-                    {s.region && <Badge>{s.region}</Badge>}
+                    {s.region && <Badge>{regionLabel(s.region)}</Badge>}
                     {s.version && <Badge><Cpu size={10} /> {s.version}</Badge>}
                     {s.playerCount != null && <Badge tone="accent"><Users size={10} /> {s.playerCount}</Badge>}
                   </div>
