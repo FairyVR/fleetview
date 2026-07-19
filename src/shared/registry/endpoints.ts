@@ -387,8 +387,24 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'user_data:read',
     fleetScoped: true,
-    status: 'unverified',
-    notes: 'Live probing found /v2/fleets/{id}/players returns 404; this v3 path is unconfirmed. user.get works globally.'
+    status: 'verified',
+    responseExample: {
+      page: { total_items: 91, item_count: 91, page_size: 100, page: 1, pages: 1 },
+      items: [
+        {
+          user_id: '9128452633859618',
+          username: 'Dozy_daisy',
+          discord_id: null,
+          platform: 'meta',
+          created: '2026-07-16T22:57:18Z',
+          last_login: '2026-07-17T21:57:44Z',
+          roles: null,
+          ban: null,
+          accepted_tos_version: null
+        }
+      ]
+    },
+    notes: 'Live-verified 2026-07-18: 200 with usernames + last_login. (/v2/fleets/{id}/users also exists but returns a smaller member subset.)'
   },
   {
     id: 'player.get',

@@ -8,20 +8,28 @@ import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { asBans, type Ban } from '../../lib/bans'
+import { ago } from '../../lib/format'
+import { useAppStore } from '../../state/useAppStore'
 
 interface Player {
   id: string
   displayName: string
+  lastLogin?: number
   roles?: string[]
 }
 
 function asPlayers(data: unknown): Player[] {
   const arr = Array.isArray(data) ? data : (data as { items?: unknown[] })?.items ?? []
-  return (arr as Record<string, unknown>[]).map((p) => ({
-    id: String(p.user_id ?? p.id ?? ''),
-    displayName: String(p.display_name ?? p.displayName ?? p.name ?? 'Unknown'),
-    roles: Array.isArray(p.roles) ? (p.roles as string[]) : undefined
-  }))
+  return (arr as Record<string, unknown>[]).map((p) => {
+    const last = typeof p.last_login === 'string' ? Date.parse(p.last_login) : NaN
+    return {
+      // Live API names the player in `username` — the old fallbacks made everyone "Unknown".
+      id: String(p.user_id ?? p.id ?? ''),
+      displayName: String(p.username ?? p.display_name ?? p.displayName ?? p.name ?? 'Unknown'),
+      lastLogin: Number.isNaN(last) ? undefined : last,
+      roles: Array.isArray(p.roles) ? (p.roles as string[]).map(String) : undefined
+    }
+  })
 }
 
 
@@ -39,9 +47,10 @@ export default function PlayerPage() {
 
 function PlayerSearcher({ fleetId }: { fleetId: string }) {
   const [query, setQuery] = useState('')
+  const showIds = useAppStore((s) => s.settings?.showIds ?? false)
   const { response, loading, run } = useEndpoint<unknown>('player.listByFleet', {
-    params: query ? { fleetId, search_string: query } : { fleetId },
-    auto: false
+    params: { fleetId, page_size: 100 },
+    auto: true
   })
   const [detailOpen, setDetailOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
@@ -52,8 +61,7 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
   const [profile, setProfile] = useState<unknown>(null)
 
   function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    if (query.trim()) void run()
+    e.preventDefault() // filtering is client-side over the loaded list
   }
 
   async function openDetail(player: Player) {
@@ -103,12 +111,12 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
           <div className="flex gap-2">
             <input
               className="input flex-1"
-              placeholder="Player name or ID…"
+              placeholder="Filter by player name…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <Button variant="primary" type="submit" disabled={loading}>
-              <Search size={14} /> Search
+            <Button variant="primary" onClick={() => void run()} disabled={loading}>
+              <Search size={14} /> Refresh
             </Button>
           </div>
         </Field>
@@ -121,7 +129,10 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
         empty={<EmptyState title="No players found" hint="Use the search bar to find players in this fleet." />}
       >
         {(raw) => {
+          // Most recently seen first, matching the dashboard's players page.
           const found = asPlayers(raw)
+            .filter((p) => !query.trim() || p.displayName.toLowerCase().includes(query.trim().toLowerCase()))
+            .sort((a, b) => (b.lastLogin ?? 0) - (a.lastLogin ?? 0))
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {found.map((player) => (
@@ -133,7 +144,10 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="font-medium">{player.displayName}</div>
-                      <div className="text-[11px] text-[var(--text-faint)] mono">{player.id}</div>
+                      {showIds && <div className="text-[11px] text-[var(--text-faint)] mono">{player.id}</div>}
+                      {player.lastLogin && (
+                        <div className="text-[11px] text-[var(--text-dim)]">last seen {ago(player.lastLogin)}</div>
+                      )}
                     </div>
                   </div>
                   {player.roles && player.roles.length > 0 && (
