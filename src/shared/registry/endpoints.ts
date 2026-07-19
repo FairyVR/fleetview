@@ -553,7 +553,12 @@ export const endpoints: EndpointDef[] = [
     category: 'server-events',
     method: 'GET',
     path: '/v2/stations/:stationId/server_events',
-    params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
+    params: [
+      { name: 'stationId', in: 'path', required: true, example: 'stn_1' },
+      { name: 'event_type', in: 'query', required: false, example: 'gamemode_stopped' },
+      { name: 'page', in: 'query', required: false, example: 1 },
+      { name: 'page_size', in: 'query', required: false, example: 50 }
+    ],
     requiresAuth: true,
     permission: 'server_event:read',
     stationScoped: true,
