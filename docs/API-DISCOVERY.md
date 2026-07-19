@@ -104,6 +104,19 @@ fleets the list returns and *probes* two cheap reads per fleet (stations, bans);
 is stored with `source: 'probed'` and is **advisory only** — probes can't see write scopes,
 so a probed set never pre-flight denies anything (`source: 'explicit'` sets still can).
 
+## Config writes (2026-07-19, verified from a working client)
+
+`POST /v2/stations/{station_id}/config?include_fleet_config=true&include_event_config=false`
+accepts ONLY this shape — anything else returns **422**:
+
+- a **flat dotted-key map** at the body root — no `{"config": {...}}` wrapper;
+- **every value a string** (`"true"`, `"301"`), never native booleans/numbers;
+- **only the changed keys** (partial update), not the full config blob.
+
+Verified against the StrikeTournamentTool Discord bot, which writes this endpoint in
+production. FleetView centralizes the shape in `configDiff()`/`CONFIG_WRITE_PARAMS`
+(`src/renderer/src/lib/stationConfig.ts`).
+
 ## Structural gotchas
 
 - **Stations come from the fleet list** (`GET /v2/fleets?include_stations=true` →
