@@ -1,10 +1,30 @@
-# FleetView
+<p align="center">
+  <img src="src/renderer/src/assets/od-wordmark.png" alt="Orion Drift" width="420">
+</p>
+
+<h1 align="center">FleetView</h1>
+
+<p align="center">
+  <img src="src/renderer/src/assets/founder_badge.png" alt="FleetView founder badge" width="140">
+</p>
 
 A production-grade desktop control application for **Orion Drift** fleets and stations,
 built around a **data-driven API endpoint registry** so newly discovered endpoints slot in
 with near-zero code changes.
 
 > **Status:** Foundation + core modules. See [Honest scope](#honest-scope) below.
+
+## Download & install (for admins)
+
+Grab the latest Windows installer from
+[**Releases**](https://github.com/FairyVR/fleetview/releases) → `FleetView Setup x.y.z.exe`.
+
+1. Run the installer. It's **unsigned**, so SmartScreen will warn — click
+   **More info → Run anyway**.
+2. Launch FleetView and add your Orion Drift API key under **Keys** (owner name is required).
+   Keys are stored encrypted on your machine and never leave it.
+
+The repo is private, so you need collaborator access to see Releases.
 
 ## The API
 
@@ -51,15 +71,26 @@ Electron's native `safeStorage` (Windows DPAPI / macOS Keychain / Linux libsecre
 runs in the main process, which injects the key server-side and returns only sanitized
 request/response records to the UI.
 
-## Getting started
+## Developing
 
 ```bash
 npm install
 npm run dev        # launch the app in dev
 npm run typecheck  # tsc across main + renderer
-npm test           # vitest unit tests
+npm test           # vitest unit tests (single file: npx vitest run tests/presence.test.ts)
 npm run gen:docs   # regenerate docs/ENDPOINTS.md from the registry
 ```
+
+## Packaging a release
+
+```bash
+npm run dist       # → release/FleetView Setup x.y.z.exe (NSIS installer)
+gh release create vX.Y.Z "release/FleetView Setup X.Y.Z.exe" --title "FleetView X.Y.Z"
+```
+
+The app icon comes from `build/icon.png` (founder badge). If electron-builder fails with
+*"Cannot create symbolic link"* while unpacking winCodeSign, see the workaround in
+[`CLAUDE.md`](CLAUDE.md#distribution).
 
 ## Honest scope
 
