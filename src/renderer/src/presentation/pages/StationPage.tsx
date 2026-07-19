@@ -9,6 +9,7 @@ import { PageHeader, Card, Button, Badge, StatusDot, EmptyState } from '../compo
 import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { JsonEditor, validateJson } from '../components/JsonEditor'
+import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
 
@@ -146,10 +147,18 @@ function StationConfigJson({ stationId }: { stationId: string }) {
     setSaving(true)
     setNote(null)
     try {
+      // POST only the changed keys, flat + stringified — the shape the live API accepts.
+      const cfg = (response?.data as { config?: unknown } | null)?.config ?? response?.data
+      const baseline = typeof cfg === 'object' && cfg !== null ? (cfg as Record<string, unknown>) : {}
+      const patch = configDiff(baseline, JSON.parse(text) as Record<string, unknown>)
+      if (!Object.keys(patch).length) {
+        setNote({ tone: 'good', msg: 'No changes to save.' })
+        return
+      }
       const res = await api.request({
         endpointId: 'station.config.set',
-        params: { stationId },
-        body: { config: JSON.parse(text) }
+        params: { stationId, ...CONFIG_WRITE_PARAMS },
+        body: patch
       })
       setNote(res.ok ? { tone: 'good', msg: 'Config saved.' } : { tone: 'bad', msg: res.error?.message ?? `HTTP ${res.status}` })
     } finally {

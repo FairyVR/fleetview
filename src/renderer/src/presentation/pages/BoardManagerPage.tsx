@@ -6,6 +6,7 @@ import { PageHeader, Card, Button, Badge, Field } from '../components/ui'
 import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
 import { BOARD_KEY_PREFIX, BOARD_NAMES, BOARD_SECTION, boardName } from '../../lib/boards'
+import { CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
 
 /** Named slots 0-9 always render (empty = no image yet), so the layout matches the dashboard. */
 const DEFAULT_SLOTS: BoardSlot[] = BOARD_NAMES.map((b, i) => ({
@@ -71,12 +72,12 @@ function BoardEditor({ stationId }: { stationId: string }) {
     setSlots((s) => s.map((slot) => (slot.key === key ? { ...slot, textureUrl: url } : slot)))
   }
 
-  /** Writes the whole config patch — the API has no per-slot endpoint. */
+  /** Writes the config patch flat (no wrapper) — the shape the live API accepts. */
   async function writeConfig(patch: Record<string, string>) {
     await api.request({
       endpointId: 'station.config.set',
-      params: { stationId },
-      body: { config: patch }
+      params: { stationId, ...CONFIG_WRITE_PARAMS },
+      body: patch
     })
   }
 

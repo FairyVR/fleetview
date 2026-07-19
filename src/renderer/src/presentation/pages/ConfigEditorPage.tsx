@@ -19,6 +19,7 @@ import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
 import { prettyJson } from '../../lib/format'
 import { api } from '../../lib/api'
+import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
 
 /**
  * Raw config workbench for the selected station: live baseline, diff, and a local
@@ -78,10 +79,20 @@ function Workbench({ stationId }: { stationId: string }) {
 
   async function saveToStation() {
     if (error || !text.trim()) return
+    // POST only the changed keys, flat + stringified — the shape the live API accepts.
+    const patch = configDiff(
+      JSON.parse(baseline || '{}') as Record<string, unknown>,
+      JSON.parse(text) as Record<string, unknown>
+    )
+    if (!Object.keys(patch).length) {
+      setNote({ tone: 'good', msg: 'No changes to save.' })
+      setTimeout(() => setNote(null), 2500)
+      return
+    }
     const res = await api.request({
       endpointId: 'station.config.set',
-      params: { stationId },
-      body: { config: JSON.parse(text) }
+      params: { stationId, ...CONFIG_WRITE_PARAMS },
+      body: patch
     })
     setNote(res.ok ? { tone: 'good', msg: 'Saved to station.' } : { tone: 'bad', msg: res.error?.message ?? `HTTP ${res.status}` })
     if (res.ok) setBaseline(text)

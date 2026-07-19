@@ -6,7 +6,15 @@ import { PageHeader, Card, Button, Badge } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
-import { classifyKey, PINNED_KEYS, coerceValue, gamemodeKey } from '../../lib/stationConfig'
+import {
+  classifyKey,
+  PINNED_KEYS,
+  coerceValue,
+  gamemodeKey,
+  configDiff,
+  CONFIG_WRITE_PARAMS,
+  DEFAULT_GM_FIELDS
+} from '../../lib/stationConfig'
 import { GAMEMODE_GROUPS, gamemodeDisplayName, gamemodeGroup } from '../../lib/gamemodes'
 
 export default function GamemodePage() {
@@ -108,21 +116,24 @@ function ConfigEditor({ stationId }: { stationId: string }) {
   }, [edited])
 
   const selected = [...selectedGms].filter((g) => gamemodes.has(g))
-  /** Union of override fields across the selected arenas. */
+  /** Union of override fields across the selected arenas plus every known default field. */
   const selectedFields = useMemo(() => {
-    const fields = new Set<string>()
+    const fields = new Set<string>(DEFAULT_GM_FIELDS.map((d) => d.field))
     for (const g of selected) for (const f of Object.keys(gamemodes.get(g)?.fields ?? {})) fields.add(f)
     return [...fields].sort()
   }, [selected, gamemodes])
 
-  /** Shared value of a field across the selection, or undefined when mixed/absent. */
-  function fieldValue(field: string): unknown {
+  /** State of a field across the selection: one shared value, mixed values, or unset everywhere. */
+  function fieldState(field: string): { kind: 'unset' } | { kind: 'mixed' } | { kind: 'value'; value: unknown } {
     const values = selected.map((g) => {
       const key = gamemodes.get(g)?.fields[field]
       return key ? edited[key] : undefined
     })
+    if (values.every((v) => v === undefined)) return { kind: 'unset' }
     const first = values[0]
-    return values.every((v) => JSON.stringify(v) === JSON.stringify(first)) ? first : undefined
+    return values.every((v) => JSON.stringify(v) === JSON.stringify(first))
+      ? { kind: 'value', value: first }
+      : { kind: 'mixed' }
   }
 
   /** Stage a field value onto every selected arena (preserving existing key casing). */
@@ -155,15 +166,16 @@ function ConfigEditor({ stationId }: { stationId: string }) {
     setSelectedGms(new Set(ids))
   }
 
-  // ---- persistence (unchanged semantics: POST full edited config) ----
+  // ---- persistence: POST only changed keys, flat, stringified (the shape the API accepts) ----
   async function saveConfig() {
-    if (JSON.stringify(edited) === JSON.stringify(original)) return
+    const patch = configDiff(original, edited)
+    if (!Object.keys(patch).length) return
     setSaving(true)
     try {
       const res = await api.request({
         endpointId: 'station.config.set',
-        params: { stationId },
-        body: { config: edited }
+        params: { stationId, ...CONFIG_WRITE_PARAMS },
+        body: patch
       })
       if (res.ok) {
         setLastSave('config')
@@ -345,14 +357,17 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                         selected.
                       </div>
                       {selectedFields.map((field) => {
-                        const value = fieldValue(field)
+                        const state = fieldState(field)
+                        const preset = DEFAULT_GM_FIELDS.find((d) => d.field === field)
                         return (
                           <div
                             key={field}
                             className="grid grid-cols-[minmax(180px,1fr)_minmax(140px,220px)] gap-3 items-center"
                           >
                             <span className="mono text-[11px] text-[var(--text-dim)]">{field}</span>
-                            {value === undefined ? (
+                            {state.kind === 'value' ? (
+                              <ValueInput value={state.value} onChange={(v) => setFieldForSelection(field, v)} />
+                            ) : state.kind === 'mixed' ? (
                               <input
                                 className="input text-[12px]"
                                 placeholder="mixed values — type to overwrite all"
@@ -363,8 +378,36 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                                   }
                                 }}
                               />
+                            ) : preset?.type === 'boolean' ? (
+                              <select
+                                className="input text-[12px]"
+                                value=""
+                                onChange={(e) =>
+                                  e.target.value !== '' && setFieldForSelection(field, e.target.value === 'true')
+                                }
+                              >
+                                <option value="">— not set —</option>
+                                <option value="true">true</option>
+                                <option value="false">false</option>
+                              </select>
+                            ) : preset?.type === 'number' ? (
+                              <input
+                                className="input text-[12px]"
+                                type="number"
+                                step="any"
+                                placeholder="not set"
+                                onBlur={(e) =>
+                                  e.target.value.trim() !== '' && setFieldForSelection(field, Number(e.target.value))
+                                }
+                              />
                             ) : (
-                              <ValueInput value={value} onChange={(v) => setFieldForSelection(field, v)} />
+                              <input
+                                className="input text-[12px]"
+                                placeholder="not set"
+                                onBlur={(e) =>
+                                  e.target.value.trim() !== '' && setFieldForSelection(field, e.target.value)
+                                }
+                              />
                             )}
                           </div>
                         )

@@ -236,11 +236,18 @@ export async function verifyFleetAccess(
 
   if (testWrite) {
     if (configData && typeof configData === 'object') {
+      // Single-key no-op re-save. The API wants a FLAT partial map with STRING values —
+      // wrapped/typed/full-blob bodies 422 (shape verified from the working bot client).
+      const cfg = configData as Record<string, unknown>
+      const key =
+        'is_whitelist' in cfg
+          ? 'is_whitelist'
+          : Object.keys(cfg).find((k) => ['string', 'number', 'boolean'].includes(typeof cfg[k]))
       const w = await executeRequest({
         endpointId: 'fleet.config.set',
         keyId,
         params: { fleetId },
-        body: configData
+        body: key ? { [key]: String(cfg[key]) } : {}
       })
       results.push({
         scope: 'fleet_config:write',

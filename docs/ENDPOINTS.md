@@ -1,6 +1,6 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-19T06:22:55.706Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-19T07:09:37.271Z._
 
 **31** endpoints registered · **24** verified · **7** unverified.
 
@@ -239,6 +239,8 @@ The full station config JSON. Board textures (BoardTextureUrl*) and gamemode ove
 - **Station-scoped**
 - **Parameters:**
   - `stationId` (path) — required — e.g. `stn_1`
+  - `include_fleet_config` (query) — e.g. `true`
+  - `include_event_config` (query) — e.g. `false`
 
 ### Set station config — `station.config.set`
 
@@ -251,15 +253,17 @@ Write the station config JSON (also how board textures / gamemode overrides are 
 - **Station-scoped**
 - **Parameters:**
   - `stationId` (path) — required — e.g. `stn_1`
+  - `include_fleet_config` (query) — e.g. `true`
+  - `include_event_config` (query) — e.g. `false`
 - **Example request body:**
 
   ```json
   {
-    "config": {
-      "BoardTextureUrl0": "https://…/a.png"
-    }
+    "loadedgamemodes.1200_full_2.modulestate.dashboardconfigoverrides.buseteam0whitelist": "true",
+    "config.stationConfig.BoardTextureUrl0": "https://…/a.png"
   }
   ```
+- **Notes:** Body is a FLAT dotted-key map — no `config` wrapper — with ALL values as strings, and only the changed keys (partial update). Wrapped/typed/full-blob bodies 422. Verified from the working StrikeTournamentTool bot.
 
 ### Reset station config — `station.config.delete`
 

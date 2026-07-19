@@ -11,11 +11,19 @@ interface Match {
   id: string
   arena: string
   trigger?: string
+  /** 0 | 1 from "teamN match win" triggers (bot-confirmed semantics). */
+  winner?: 0 | 1
   score0?: number
   score1?: number
-  players: string[]
+  players: Array<{ name: string; team?: number }>
   at?: number
   raw: unknown
+}
+
+/** Team membership when the event exposes it — the known payload often doesn't. */
+function playerTeam(p: Record<string, unknown>): number | undefined {
+  const t = [p.team, p.team_index, p.teamId, p.team_id].find((v) => typeof v === 'number')
+  return t as number | undefined
 }
 
 /** gamemode_stopped events carry a JSON string in event_data (live-verified). */
@@ -33,15 +41,23 @@ function asMatches(data: unknown): Match[] {
       const scores = (ed.scores ?? {}) as Record<string, unknown>
       const players = Array.isArray(ed.players) ? ed.players : []
       const at = typeof e.timestamp === 'string' ? Date.parse(e.timestamp) : NaN
+      const trigger = typeof ed.event_trigger === 'string' ? ed.event_trigger : undefined
+      const winner = trigger?.toLowerCase().startsWith('team0')
+        ? (0 as const)
+        : trigger?.toLowerCase().startsWith('team1')
+          ? (1 as const)
+          : undefined
       return {
         id: String(e.idx ?? ''),
         arena: gamemodeDisplayName(String(ed.slot_id ?? 'unknown')),
-        trigger: typeof ed.event_trigger === 'string' ? ed.event_trigger : undefined,
+        trigger,
+        winner,
         score0: typeof scores['0'] === 'number' ? (scores['0'] as number) : undefined,
         score1: typeof scores['1'] === 'number' ? (scores['1'] as number) : undefined,
         players: players
-          .map((p) => String((p as Record<string, unknown>)?.name ?? ''))
-          .filter(Boolean),
+          .map((p) => p as Record<string, unknown>)
+          .map((p) => ({ name: String(p?.name ?? ''), team: playerTeam(p) }))
+          .filter((p) => p.name),
         at: Number.isNaN(at) ? undefined : at,
         raw: ed
       }
@@ -98,7 +114,9 @@ function MatchList({ stationId }: { stationId: string }) {
                       <Trophy size={15} className="text-[var(--accent)]" />
                       <span className="font-medium">{m.arena}</span>
                       {m.score0 !== undefined && m.score1 !== undefined && (
-                        <Badge tone="accent">{m.score0} – {m.score1}</Badge>
+                        <Badge tone={m.winner !== undefined ? 'good' : 'accent'}>
+                          {m.winner === 0 ? <b>{m.score0}</b> : m.score0} – {m.winner === 1 ? <b>{m.score1}</b> : m.score1}
+                        </Badge>
                       )}
                       {m.trigger && <Badge>{m.trigger}</Badge>}
                       {m.at && <span className="text-[11px] text-[var(--text-dim)] ml-auto">{ts(m.at)}</span>}
@@ -106,7 +124,12 @@ function MatchList({ stationId }: { stationId: string }) {
                     {m.players.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2 ml-7">
                         {m.players.map((p) => (
-                          <Badge key={p}>{p}</Badge>
+                          <Badge
+                            key={p.name}
+                            tone={p.team !== undefined && p.team === m.winner ? 'good' : 'neutral'}
+                          >
+                            {p.name}
+                          </Badge>
                         ))}
                       </div>
                     )}

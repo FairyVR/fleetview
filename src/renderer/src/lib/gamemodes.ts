@@ -47,17 +47,22 @@ export const GAMEMODE_GROUPS: Record<string, Record<string, string>> = {
   }
 }
 
-const FLAT: Record<string, string> = Object.assign({}, ...Object.values(GAMEMODE_GROUPS))
+/** Config ids mix separators freely (`fieldhouse 03` vs `fieldhouse_03`) — normalize both sides. */
+const norm = (id: string): string => id.toLowerCase().replace(/[\s_]+/g, '_')
+
+const FLAT: Record<string, string> = Object.fromEntries(
+  Object.values(GAMEMODE_GROUPS).flatMap((ids) => Object.entries(ids).map(([k, v]) => [norm(k), v]))
+)
 const GROUP_OF: Record<string, string> = Object.fromEntries(
-  Object.entries(GAMEMODE_GROUPS).flatMap(([group, ids]) => Object.keys(ids).map((id) => [id, group]))
+  Object.entries(GAMEMODE_GROUPS).flatMap(([group, ids]) => Object.keys(ids).map((id) => [norm(id), group]))
 )
 
 /** Human name for a gamemode id; unknown ids get a cleaned-up fallback. */
 export function gamemodeDisplayName(id: string): string {
-  return FLAT[id.toLowerCase()] ?? id.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+  return FLAT[norm(id)] ?? id.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 /** Group name for a gamemode id, or null when unmapped. */
 export function gamemodeGroup(id: string): string | null {
-  return GROUP_OF[id.toLowerCase()] ?? null
+  return GROUP_OF[norm(id)] ?? null
 }

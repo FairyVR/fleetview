@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { classifyKey, coerceValue, gamemodeKey } from '../src/renderer/src/lib/stationConfig'
+import { classifyKey, coerceValue, gamemodeKey, configDiff } from '../src/renderer/src/lib/stationConfig'
 import { gamemodeDisplayName, gamemodeGroup } from '../src/renderer/src/lib/gamemodes'
 import { boardName } from '../src/renderer/src/lib/boards'
 
@@ -36,12 +36,32 @@ describe('coerceValue', () => {
   })
 })
 
+describe('configDiff', () => {
+  it('emits only changed/added keys, all values as strings (the live API write shape)', () => {
+    const original = { a: true, b: 301, c: 'keep', gone: 1 }
+    const edited = { a: false, b: 301, c: 'keep', d: 4.5, e: 'new' }
+    expect(configDiff(original, edited)).toEqual({ a: 'false', d: '4.5', e: 'new' })
+  })
+
+  it('returns empty for no changes and skips undefined values', () => {
+    expect(configDiff({ a: 1 }, { a: 1 })).toEqual({})
+    expect(configDiff({}, { a: undefined as unknown as string })).toEqual({})
+  })
+})
+
 describe('gamemode naming', () => {
   it('maps known ids case-insensitively', () => {
     expect(gamemodeDisplayName('tkb_prime')).toBe('Prime Arena')
     expect(gamemodeDisplayName('1200_Full_2')).toBe('First 2v2 Strike Arena')
     expect(gamemodeDisplayName('1200_full_2')).toBe('First 2v2 Strike Arena')
     expect(gamemodeGroup('TKB_Bunker')).toBe('TKB')
+  })
+
+  it('treats spaces and underscores as the same separator', () => {
+    expect(gamemodeDisplayName('fieldhouse_03')).toBe('First Strike Arena on the Right')
+    expect(gamemodeDisplayName('Fieldhouse 03')).toBe('First Strike Arena on the Right')
+    expect(gamemodeDisplayName('driftball_east_01')).toBe('East Front 4v4 Arena')
+    expect(gamemodeGroup('driftball east 01')).toBe('Driftball 4v4')
   })
 
   it('prettifies unknown ids', () => {

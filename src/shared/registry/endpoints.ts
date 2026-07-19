@@ -194,7 +194,11 @@ export const endpoints: EndpointDef[] = [
     category: 'config',
     method: 'GET',
     path: '/v2/stations/:stationId/config',
-    params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
+    params: [
+      { name: 'stationId', in: 'path', required: true, example: 'stn_1' },
+      { name: 'include_fleet_config', in: 'query', required: false, example: true },
+      { name: 'include_event_config', in: 'query', required: false, example: false }
+    ],
     requiresAuth: true,
     permission: 'station_config:read',
     stationScoped: true,
@@ -207,12 +211,21 @@ export const endpoints: EndpointDef[] = [
     category: 'config',
     method: 'POST',
     path: '/v2/stations/:stationId/config',
-    params: [{ name: 'stationId', in: 'path', required: true, example: 'stn_1' }],
+    params: [
+      { name: 'stationId', in: 'path', required: true, example: 'stn_1' },
+      { name: 'include_fleet_config', in: 'query', required: false, example: true },
+      { name: 'include_event_config', in: 'query', required: false, example: false }
+    ],
     requiresAuth: true,
     permission: 'station_config:write',
     stationScoped: true,
-    requestExample: { config: { BoardTextureUrl0: 'https://…/a.png' } },
-    status: 'verified'
+    requestExample: {
+      'loadedgamemodes.1200_full_2.modulestate.dashboardconfigoverrides.buseteam0whitelist': 'true',
+      'config.stationConfig.BoardTextureUrl0': 'https://…/a.png'
+    },
+    status: 'verified',
+    notes:
+      'Body is a FLAT dotted-key map — no `config` wrapper — with ALL values as strings, and only the changed keys (partial update). Wrapped/typed/full-blob bodies 422. Verified from the working StrikeTournamentTool bot.'
   },
   {
     id: 'station.config.delete',

@@ -47,3 +47,53 @@ export function coerceValue(text: string): unknown {
 export function gamemodeKey(gm: string, field: string): string {
   return `loadedgamemodes.${gm}.modulestate.dashboardconfigoverrides.${field}`
 }
+
+/**
+ * The live config-write shape, verified from the working StrikeTournamentTool bot:
+ * POST a FLAT dotted-key map (no `config` wrapper), ALL values as strings, only the
+ * changed keys, with these query params. Anything else 422s.
+ */
+export const CONFIG_WRITE_PARAMS = { include_fleet_config: true, include_event_config: false }
+
+export function configDiff(
+  original: Record<string, unknown>,
+  edited: Record<string, unknown>
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(edited)) {
+    if (v === undefined) continue
+    if (JSON.stringify(original[k]) !== JSON.stringify(v)) out[k] = String(v)
+  }
+  return out
+}
+
+/**
+ * Every dashboardconfigoverrides field the dashboard exposes, so operators can set
+ * them from typed controls without typing key names. Types drive the input widget.
+ */
+export const DEFAULT_GM_FIELDS: Array<{ field: string; type: 'boolean' | 'number' | 'string' }> = [
+  { field: 'bkicklosingteam', type: 'boolean' },
+  { field: 'buseclosedteamvoip', type: 'boolean' },
+  { field: 'matchlengthseconds', type: 'number' },
+  { field: 'mercyscoredifference', type: 'number' },
+  { field: 'buseteam0whitelist', type: 'boolean' },
+  { field: 'team0whitelist', type: 'string' },
+  { field: 'buseteam1whitelist', type: 'boolean' },
+  { field: 'team1whitelist', type: 'string' },
+  { field: 'busebestof', type: 'boolean' },
+  { field: 'roundspermatch', type: 'number' },
+  { field: 'ticketmanagersettings.maxteamsizes.0', type: 'number' },
+  { field: 'ticketmanagersettings.maxteamsizes.1', type: 'number' },
+  { field: 'team0name', type: 'string' },
+  { field: 'team1name', type: 'string' },
+  { field: 'timebetweenrounds', type: 'number' },
+  { field: 'bshuffleteamsaftermatch', type: 'boolean' },
+  { field: 'ballowpracticemode', type: 'boolean' },
+  { field: 'ballowrestarts', type: 'boolean' },
+  { field: 'buserollbacknetcode', type: 'boolean' },
+  { field: 'ballowplayergrabbingsameteam', type: 'boolean' },
+  { field: 'ballowplayergrabbingotherteam', type: 'boolean' },
+  { field: 'ballowplayertackling', type: 'boolean' },
+  { field: 'busemaxteamsize', type: 'boolean' },
+  { field: 'maxteamsize', type: 'number' }
+]
