@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Shield, RefreshCw, Send } from 'lucide-react'
+import { Shield, RefreshCw, Send, Users } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
-import { PageHeader, Card, Button, Badge, Field } from '../components/ui'
+import { PageHeader, Card, Button, Badge, Field, EmptyState } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
+import { Modal } from '../components/Modal'
+import { useAppStore } from '../../state/useAppStore'
 
 interface Role {
   id: string
@@ -24,13 +26,35 @@ function asRoles(data: unknown): Role[] {
   }))
 }
 
+interface FleetUser {
+  id: string
+  name: string
+  roles: string[]
+}
+
+/** All users the fleet knows, with their roles when the API includes them. */
+async function loadFleetUsers(fleetId: string): Promise<FleetUser[]> {
+  const res = await api.request({
+    endpointId: 'player.listByFleet',
+    params: { fleetId, page_size: 100, include_roles: true }
+  })
+  const arr = (res.data as { items?: unknown[] } | null)?.items
+  return (Array.isArray(arr) ? arr : [])
+    .map((u) => u as Record<string, unknown>)
+    .map((u) => ({
+      id: String(u.user_id ?? ''),
+      name: String(u.username ?? u.user_id ?? ''),
+      roles: (Array.isArray(u.roles) ? u.roles : []).map((r) =>
+        typeof r === 'string' ? r : String((r as Record<string, unknown>)?.role_id ?? (r as Record<string, unknown>)?.role_name ?? '')
+      )
+    }))
+    .filter((u) => u.id)
+}
+
 export default function RolesPage() {
   return (
     <div>
-      <PageHeader
-        title="Roles"
-        subtitle="Manage user roles and permissions."
-      />
+      <PageHeader title="Roles" subtitle="Fleet roles: click one to see its members, or assign it to players by name." />
       <FleetScoped>{(fleetId) => <RolesEditor fleetId={fleetId} />}</FleetScoped>
     </div>
   )
@@ -41,31 +65,46 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
     params: { fleetId },
     auto: true
   })
-  const [userId, setUserId] = useState('')
+  const showIds = useAppStore((s) => s.settings?.showIds ?? false)
+  const [names, setNames] = useState('')
   const [selectedRole, setSelectedRole] = useState('')
   const [assigning, setAssigning] = useState(false)
-  const [lastResult, setLastResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [assignResults, setAssignResults] = useState<Array<{ name: string; ok: boolean; msg?: string }> | null>(null)
+  const [memberRole, setMemberRole] = useState<Role | null>(null)
+  const [members, setMembers] = useState<FleetUser[] | null>(null)
 
   const roles = asRoles(data)
 
-  async function handleAssign() {
-    if (!userId.trim() || !selectedRole.trim()) return
+  async function openMembers(role: Role) {
+    setMemberRole(role)
+    setMembers(null)
+    const users = await loadFleetUsers(fleetId)
+    setMembers(users.filter((u) => u.roles.includes(role.id) || u.roles.includes(role.name)))
+  }
 
+  async function handleAssign() {
+    const wanted = names.split(',').map((n) => n.trim()).filter(Boolean)
+    if (!wanted.length || !selectedRole) return
     setAssigning(true)
+    setAssignResults(null)
     try {
-      const res = await api.request({
-        endpointId: 'roles.assign',
-        params: { fleetId, userId, roleId: selectedRole }
-      })
-      setLastResult({
-        ok: res.ok,
-        message: res.ok ? `Role assigned to ${userId}` : 'Failed to assign role'
-      })
-      if (res.ok) {
-        setUserId('')
-        setSelectedRole('')
+      const users = await loadFleetUsers(fleetId)
+      const byName = new Map(users.map((u) => [u.name.toLowerCase(), u]))
+      const results: Array<{ name: string; ok: boolean; msg?: string }> = []
+      for (const name of wanted) {
+        const user = byName.get(name.toLowerCase())
+        if (!user) {
+          results.push({ name, ok: false, msg: 'no player with that name in this fleet' })
+          continue
+        }
+        const res = await api.request({
+          endpointId: 'roles.assign',
+          params: { fleetId, userId: user.id, roleId: selectedRole }
+        })
+        results.push({ name, ok: res.ok, msg: res.ok ? undefined : res.error?.message ?? `HTTP ${res.status}` })
       }
-      setTimeout(() => setLastResult(null), 2000)
+      setAssignResults(results)
+      if (results.every((r) => r.ok)) setNames('')
     } finally {
       setAssigning(false)
     }
@@ -82,15 +121,20 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
           {(raw) => (
             <div className="lg:col-span-2 space-y-4">
               {asRoles(raw).map((role) => (
-                <Card key={role.id}>
+                <button
+                  key={role.id}
+                  onClick={() => void openMembers(role)}
+                  className="card p-4 text-left w-full hover:border-[var(--accent-2)] transition-colors"
+                >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Shield size={16} className="text-[var(--accent)]" />
                       <div>
                         <div className="font-medium">{role.name}</div>
-                        <div className="text-[11px] text-[var(--text-faint)] mono">{role.id}</div>
+                        {showIds && <div className="text-[11px] text-[var(--text-faint)] mono">{role.id}</div>}
                       </div>
                     </div>
+                    <Badge><Users size={10} /> members</Badge>
                   </div>
                   {role.description && (
                     <p className="text-[12px] text-[var(--text-dim)] mb-2">{role.description}</p>
@@ -98,15 +142,13 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
                   {role.permissions.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {role.permissions.map((perm) => (
-                        <Badge key={perm} tone="accent">
-                          {perm}
-                        </Badge>
+                        <Badge key={perm} tone="accent">{perm}</Badge>
                       ))}
                     </div>
                   ) : (
                     <p className="text-[12px] text-[var(--text-dim)]">No permissions</p>
                   )}
-                </Card>
+                </button>
               ))}
             </div>
           )}
@@ -118,26 +160,21 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
               <Shield size={16} /> Assign Role
             </div>
             <div className="space-y-3">
-              <Field label="User ID">
-                <input
-                  className="input"
-                  placeholder="User ID…"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
+              <Field label="Player names (comma-separated)">
+                <textarea
+                  className="input text-[12px]"
+                  rows={3}
+                  placeholder="Fairy-, Dozy_daisy, lI.bread.lI"
+                  value={names}
+                  onChange={(e) => setNames(e.target.value)}
                 />
               </Field>
 
               <Field label="Role">
-                <select
-                  className="input"
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                >
+                <select className="input" value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
                   <option value="">Select role…</option>
                   {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
+                    <option key={role.id} value={role.id}>{role.name}</option>
                   ))}
                 </select>
               </Field>
@@ -145,21 +182,53 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
               <Button
                 variant="primary"
                 onClick={() => void handleAssign()}
-                disabled={!userId.trim() || !selectedRole.trim() || assigning}
+                disabled={!names.trim() || !selectedRole || assigning}
                 className="w-full justify-center"
               >
-                <Send size={13} /> Assign
+                <Send size={13} /> {assigning ? 'Assigning…' : 'Assign to all listed'}
               </Button>
 
-              {lastResult && (
-                <Badge tone={lastResult.ok ? 'good' : 'bad'}>
-                  {lastResult.message}
-                </Badge>
+              {assignResults && (
+                <div className="grid gap-1">
+                  {assignResults.map((r) => (
+                    <div key={r.name} className="flex items-center gap-2 text-[12px]">
+                      <Badge tone={r.ok ? 'good' : 'bad'}>{r.ok ? 'ok' : 'failed'}</Badge>
+                      <span>{r.name}</span>
+                      {r.msg && <span className="text-[var(--text-dim)]">{r.msg}</span>}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </Card>
         </PermissionGate>
       </div>
+
+      <Modal
+        open={memberRole !== null}
+        title={memberRole ? `${memberRole.name} — members` : 'Members'}
+        onClose={() => setMemberRole(null)}
+        footer={<Button onClick={() => setMemberRole(null)}>Close</Button>}
+      >
+        {members === null ? (
+          <p className="text-[13px] text-[var(--text-dim)]">Loading members…</p>
+        ) : members.length === 0 ? (
+          <EmptyState
+            title="No members found"
+            hint="No player in this fleet's user list currently reports this role."
+          />
+        ) : (
+          <div className="grid gap-1.5">
+            {members.map((m) => (
+              <div key={m.id} className="flex items-center gap-2 text-[13px]">
+                <Users size={13} className="text-[var(--accent)]" />
+                <span>{m.name}</span>
+                {showIds && <span className="mono text-[11px] text-[var(--text-faint)]">{m.id}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -131,8 +131,19 @@ describe('registry integrity (real Orion Drift API)', () => {
   })
 
   it('marks paths whose v2 equivalents 404d as unverified', () => {
-    for (const id of ['fleet.get', 'fleet.update', 'roles.list', 'roles.create']) {
+    for (const id of ['fleet.get', 'fleet.update', 'roles.create']) {
       expect((getEndpoint(id) as EndpointDef).status, id).toBe('unverified')
+    }
+  })
+
+  it('keeps live-verified 2026-07-18 endpoints verified', () => {
+    for (const [id, path] of [
+      ['roles.list', '/v1/fleets/:fleetId/roles'],
+      ['player.listByFleet', '/v3/fleets/:fleetId/users']
+    ]) {
+      const e = getEndpoint(id) as EndpointDef
+      expect(e.path, id).toBe(path)
+      expect(e.status, id).toBe('verified')
     }
   })
 })

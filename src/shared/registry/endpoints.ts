@@ -241,10 +241,18 @@ export const endpoints: EndpointDef[] = [
     permission: 'role:read',
     fleetScoped: true,
     responseExample: {
-      roles: [{ role_id: 'rol_1', role_name: 'Moderator', role_description: '', permissions: ['user_ban:write'] }]
+      roles: [
+        {
+          role_id: 'ee2b742e-2c02-4832-a8be-0a0c9d800225',
+          fleet_id: 'a93461f2-…',
+          role_name: 'Player',
+          role_description: 'Allows a user to join a private fleet',
+          permissions: ['fleet:join']
+        }
+      ]
     },
-    status: 'unverified',
-    notes: 'Live probing found /v2/fleets/{id}/roles returns 404; v1 roles paths unconfirmed against the live API.'
+    status: 'verified',
+    notes: 'Live-verified 2026-07-18 against /v1 (v2/v3 404). Response wrapped in `roles`.'
   },
   {
     id: 'roles.create',
