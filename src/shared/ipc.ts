@@ -43,7 +43,6 @@ export const CHANNELS = {
 
 export interface AppSettings {
   baseUrl: string
-  activeKeyId: string | null
   requestTimeoutMs: number
   maxRetries: number
   theme: 'dark' | 'light'

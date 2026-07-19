@@ -31,7 +31,6 @@ import {
 function readSettings(): AppSettings {
   return {
     baseUrl: settingsStore.get('baseUrl'),
-    activeKeyId: settingsStore.get('activeKeyId'),
     requestTimeoutMs: settingsStore.get('requestTimeoutMs'),
     maxRetries: settingsStore.get('maxRetries'),
     theme: settingsStore.get('theme'),
