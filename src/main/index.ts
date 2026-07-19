@@ -41,6 +41,7 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#0b0f17',
     title: 'FleetView',
+    icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,

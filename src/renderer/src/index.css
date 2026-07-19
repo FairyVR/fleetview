@@ -10,8 +10,8 @@
   --text: #e6ecf7;
   --text-dim: #93a2c0;
   --text-faint: #61708f;
-  --accent: #4fd1e6;
-  --accent-2: #6d8bff;
+  --accent: #b465f5;
+  --accent-2: #9a35ec;
   --good: #46d19a;
   --warn: #f5c451;
   --bad: #f2678b;
@@ -76,7 +76,7 @@ body {
   cursor: not-allowed;
 }
 .btn-primary {
-  background: linear-gradient(180deg, var(--accent-2), #556fe0);
+  background: linear-gradient(180deg, var(--accent-2), #7c1cc9);
   border-color: transparent;
   color: #fff;
   font-weight: 600;

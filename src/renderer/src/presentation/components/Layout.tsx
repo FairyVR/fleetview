@@ -1,5 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Rocket, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
+import badge from '../../assets/founder_badge.png'
+import wordmark from '../../assets/od-wordmark.png'
 import type { ReactNode } from 'react'
 import { NAV } from '../nav'
 import { cn } from '../../lib/cn'
@@ -52,9 +54,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="flex flex-col border-r border-[var(--border-soft)] bg-[var(--bg-elev)] overflow-hidden">
         <div className="flex items-center gap-2.5 px-4 h-14 border-b border-[var(--border-soft)] shrink-0">
-          <div className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)]">
-            <Rocket size={16} className="text-[#08101f]" />
-          </div>
+          <img src={badge} alt="Orion Drift founder badge" className="w-8 h-8 object-contain" />
           <div className="leading-tight">
             <div className="font-semibold tracking-tight">FleetView</div>
             <div className="text-[10.5px] text-[var(--text-faint)]">Orion Drift control</div>
@@ -90,6 +90,9 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
+        <div className="px-4 py-3 border-t border-[var(--border-soft)] shrink-0">
+          <img src={wordmark} alt="Orion Drift" className="w-full max-w-[140px] mx-auto opacity-40" />
+        </div>
       </aside>
 
       {/* Main */}
