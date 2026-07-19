@@ -9,7 +9,7 @@ import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { asBans, type Ban } from '../../lib/bans'
 import { ago } from '../../lib/format'
-import { presence } from '../../lib/presence'
+import { isOnline } from '../../lib/presence'
 import { useAppStore } from '../../state/useAppStore'
 
 interface Player {
@@ -53,12 +53,6 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
     params: { fleetId, page_size: 100 },
     auto: true
   })
-  // Live presence from fresh station `state` events; failure -> empty set -> no badges (unknown ≠ offline).
-  const { data: eventsData } = useEndpoint<unknown>('events.fleet', {
-    params: { fleetId },
-    auto: true
-  })
-  const { known: presenceKnown, online } = presence(eventsData)
   const [detailOpen, setDetailOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const [banReason, setBanReason] = useState('')
@@ -152,12 +146,11 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
                     <div>
                       <div className="font-medium flex items-center gap-2">
                         {player.displayName}
-                        {presenceKnown &&
-                          (online.has(player.displayName.toLowerCase()) ? (
-                            <Badge tone="good">Online</Badge>
-                          ) : (
-                            <span className="text-[10.5px] text-[var(--text-faint)]">Offline</span>
-                          ))}
+                        {isOnline(player.lastLogin) ? (
+                          <Badge tone="good">Online</Badge>
+                        ) : (
+                          <span className="text-[10.5px] text-[var(--text-faint)]">Offline</span>
+                        )}
                       </div>
                       {showIds && <div className="text-[11px] text-[var(--text-faint)] mono">{player.id}</div>}
                       {player.lastLogin && (
