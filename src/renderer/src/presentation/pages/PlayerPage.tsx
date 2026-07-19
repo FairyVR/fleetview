@@ -153,7 +153,7 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
                         )}
                       </div>
                       {showIds && <div className="text-[11px] text-[var(--text-faint)] mono">{player.id}</div>}
-                      {player.lastLogin && (
+                      {player.lastLogin && !isOnline(player.lastLogin) && (
                         <div className="text-[11px] text-[var(--text-dim)]">last seen {ago(player.lastLogin)}</div>
                       )}
                     </div>
