@@ -42,4 +42,14 @@ fleets/stations through a **data-driven endpoint registry**.
 
 ## Commands
 - `npm run dev` · `npm run typecheck` (node + web) · `npm test` · `npm run gen:docs`
+- Single test file: `npx vitest run tests/presence.test.ts` (all tests live in `tests/`).
 - Docs: `docs/ARCHITECTURE.md`, `docs/API-DISCOVERY.md`, `docs/ENDPOINTS.md` (generated).
+
+## Distribution
+- `npm run dist` → NSIS installer in `release/` (unsigned — admins click through SmartScreen).
+- Ship via GitHub Releases on `FairyVR/fleetview` (private repo — admins must be collaborators):
+  `gh release create vX.Y.Z "release\FleetView Setup X.Y.Z.exe"`.
+- If electron-builder fails with "Cannot create symbolic link" unpacking winCodeSign: extract
+  the cached .7z manually with `7za x -xr!*.dylib` into
+  `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (mac symlinks need
+  admin rights on Windows; excluding them is safe). Already done on this machine.
