@@ -91,7 +91,7 @@ export function Layout({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="px-4 py-3 border-t border-[var(--border-soft)] shrink-0">
-          <img src={wordmark} alt="Orion Drift" className="w-full max-w-[140px] mx-auto opacity-40" />
+          <img src={wordmark} alt="Orion Drift" className="w-full max-w-[140px] mx-auto opacity-90" />
         </div>
       </aside>
 
