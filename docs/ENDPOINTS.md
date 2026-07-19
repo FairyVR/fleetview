@@ -1,8 +1,8 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T16:34:11.580Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-19T06:22:55.706Z._
 
-**31** endpoints registered · **22** verified · **9** unverified.
+**31** endpoints registered · **24** verified · **7** unverified.
 
 > Base URL `https://api.oriondrift.net` · auth header `x-api-key`. See `docs/API-DISCOVERY.md`.
 >
@@ -24,7 +24,7 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T16:34:11.5
 | `station.config.get` | GET | `/v2/stations/:stationId/config` | yes | station_config:read | verified |
 | `station.config.set` | POST | `/v2/stations/:stationId/config` | yes | station_config:write | verified |
 | `station.config.delete` | DELETE | `/v2/stations/:stationId/config` | yes | station_config:write | verified |
-| `roles.list` | GET | `/v1/fleets/:fleetId/roles` | yes | role:read | unverified |
+| `roles.list` | GET | `/v1/fleets/:fleetId/roles` | yes | role:read | verified |
 | `roles.create` | POST | `/v1/fleets/:fleetId/roles` | yes | role:write | unverified |
 | `roles.updatePermissions` | PATCH | `/v1/fleets/:fleetId/roles/:roleId/permissions` | yes | role:write | unverified |
 | `roles.delete` | DELETE | `/v1/fleets/:fleetId/roles/:roleId` | yes | role:write | unverified |
@@ -32,7 +32,7 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-18T16:34:11.5
 | `roles.unassign` | DELETE | `/v1/fleets/:fleetId/users/:userId/role/:roleId` | yes | role:write | unverified |
 | `user.get` | GET | `/v2/users/:userId` | yes | user_data:read | verified |
 | `player.search` | GET | `/v1/user_search` | yes | user_data:read | verified |
-| `player.listByFleet` | GET | `/v3/fleets/:fleetId/users` | yes | user_data:read | unverified |
+| `player.listByFleet` | GET | `/v3/fleets/:fleetId/users` | yes | user_data:read | verified |
 | `player.get` | GET | `/v1/fleets/:fleetId/users/:userId` | yes | user_data:read | verified |
 | `player.bans` | GET | `/v1/fleets/:fleetId/users/:userId/bans` | yes | user_data:read | verified |
 | `moderation.bans` | GET | `/v2/fleets/:fleetId/bans` | yes | user_data:read | verified |
@@ -282,7 +282,7 @@ Roles for a fleet (use fleetId "global" for global roles).
 - **Method / Path:** `GET /v1/fleets/:fleetId/roles`
 - **Auth required:** yes
 - **Permission scope:** role:read
-- **Status:** unverified
+- **Status:** verified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `global`
@@ -292,17 +292,18 @@ Roles for a fleet (use fleetId "global" for global roles).
   {
     "roles": [
       {
-        "role_id": "rol_1",
-        "role_name": "Moderator",
-        "role_description": "",
+        "role_id": "ee2b742e-2c02-4832-a8be-0a0c9d800225",
+        "fleet_id": "a93461f2-…",
+        "role_name": "Player",
+        "role_description": "Allows a user to join a private fleet",
         "permissions": [
-          "user_ban:write"
+          "fleet:join"
         ]
       }
     ]
   }
   ```
-- **Notes:** Live probing found /v2/fleets/{id}/roles returns 404; v1 roles paths unconfirmed against the live API.
+- **Notes:** Live-verified 2026-07-18 against /v1 (v2/v3 404). Response wrapped in `roles`.
 
 ### Create role — `roles.create`
 
@@ -452,7 +453,7 @@ Paged users in a fleet, with roles.
 - **Method / Path:** `GET /v3/fleets/:fleetId/users`
 - **Auth required:** yes
 - **Permission scope:** user_data:read
-- **Status:** unverified
+- **Status:** verified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
@@ -460,7 +461,33 @@ Paged users in a fleet, with roles.
   - `page` (query) — e.g. `1`
   - `page_size` (query) — e.g. `16`
   - `include_roles` (query) — e.g. `true`
-- **Notes:** Live probing found /v2/fleets/{id}/players returns 404; this v3 path is unconfirmed. user.get works globally.
+- **Example response:**
+
+  ```json
+  {
+    "page": {
+      "total_items": 91,
+      "item_count": 91,
+      "page_size": 100,
+      "page": 1,
+      "pages": 1
+    },
+    "items": [
+      {
+        "user_id": "9128452633859618",
+        "username": "Dozy_daisy",
+        "discord_id": null,
+        "platform": "meta",
+        "created": "2026-07-16T22:57:18Z",
+        "last_login": "2026-07-17T21:57:44Z",
+        "roles": null,
+        "ban": null,
+        "accepted_tos_version": null
+      }
+    ]
+  }
+  ```
+- **Notes:** Live-verified 2026-07-18: 200 with usernames + last_login. (/v2/fleets/{id}/users also exists but returns a smaller member subset.)
 
 ### Get fleet user — `player.get`
 
@@ -595,6 +622,9 @@ Recent server events for a single station (polled).
 - **Station-scoped**
 - **Parameters:**
   - `stationId` (path) — required — e.g. `stn_1`
+  - `event_type` (query) — e.g. `gamemode_stopped`
+  - `page` (query) — e.g. `1`
+  - `page_size` (query) — e.g. `50`
 - **Example response:**
 
   ```json

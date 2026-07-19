@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { ts } from '../../lib/format'
 import { PageHeader, Card, Button, Badge, Field, EmptyState, JsonBlock } from '../components/ui'
 import { cn } from '../../lib/cn'
+import { normalizeLeCode } from '../../lib/leFormat'
 
 const BLANK: Omit<LeConfig, 'id' | 'createdAt' | 'modifiedAt' | 'history'> = {
   name: '',
@@ -69,7 +70,7 @@ export default function LeLibraryPage() {
       ...draft,
       id: selectedId ?? undefined,
       name: draft.name,
-      code: draft.code,
+      code: normalizeLeCode(draft.code),
       tags: parseTags(tagsText)
     } as LeConfig)
     await refresh()
@@ -208,6 +209,15 @@ export default function LeLibraryPage() {
                 onChange={(e) => setDraft({ ...draft, code: e.target.value })}
                 placeholder="Paste the raw Level Editor config code here…"
               />
+              <div className="mt-1.5">
+                <Button
+                  variant="ghost"
+                  onClick={() => setDraft({ ...draft, code: normalizeLeCode(draft.code ?? '') })}
+                  title="Ensure every line ends with a comma except the last"
+                >
+                  Format commas
+                </Button>
+              </div>
             </Field>
             <Field label="Notes">
               <textarea className="input h-20 resize-y" value={draft.notes ?? ''} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />

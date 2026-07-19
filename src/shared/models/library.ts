@@ -30,6 +30,7 @@ export type PresetKind =
   | 'le-config'
   | 'spawn'
   | 'team'
+  | 'config'
 
 /** A generic reusable preset stored in the local Config Library. */
 export interface Preset {
