@@ -8,6 +8,7 @@ import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { useAppStore } from '../../state/useAppStore'
+import { loadFleetUsers, type FleetUser } from '../../lib/fleetUsers'
 
 interface Role {
   id: string
@@ -24,31 +25,6 @@ function asRoles(data: unknown): Role[] {
     description: (r.role_description ?? r.description) as string | undefined,
     permissions: Array.isArray(r.permissions) ? (r.permissions as string[]) : []
   }))
-}
-
-interface FleetUser {
-  id: string
-  name: string
-  roles: string[]
-}
-
-/** All users the fleet knows, with their roles when the API includes them. */
-async function loadFleetUsers(fleetId: string): Promise<FleetUser[]> {
-  const res = await api.request({
-    endpointId: 'player.listByFleet',
-    params: { fleetId, page_size: 100, include_roles: true }
-  })
-  const arr = (res.data as { items?: unknown[] } | null)?.items
-  return (Array.isArray(arr) ? arr : [])
-    .map((u) => u as Record<string, unknown>)
-    .map((u) => ({
-      id: String(u.user_id ?? ''),
-      name: String(u.username ?? u.user_id ?? ''),
-      roles: (Array.isArray(u.roles) ? u.roles : []).map((r) =>
-        typeof r === 'string' ? r : String((r as Record<string, unknown>)?.role_id ?? (r as Record<string, unknown>)?.role_name ?? '')
-      )
-    }))
-    .filter((u) => u.id)
 }
 
 export default function RolesPage() {

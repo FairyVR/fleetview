@@ -8,6 +8,8 @@ import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { ts } from '../../lib/format'
 import { asBans } from '../../lib/bans'
+import { resolveUserId } from '../../lib/fleetUsers'
+import { useAppStore } from '../../state/useAppStore'
 
 export default function ModerationPage() {
   return (
@@ -22,6 +24,7 @@ export default function ModerationPage() {
 }
 
 function ModerationPanel({ fleetId }: { fleetId: string }) {
+  const showIds = useAppStore((s) => s.settings?.showIds ?? false)
   const [banPlayerId, setBanPlayerId] = useState('')
   const [banReason, setBanReason] = useState('')
   const [banHours, setBanHours] = useState('24')
@@ -38,9 +41,15 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
   async function handleBan() {
     if (!banPlayerId.trim() || !banReason.trim()) return
     const durationHours = parseInt(banHours, 10) || 24
+    const resolved = await resolveUserId(fleetId, banPlayerId)
+    if ('error' in resolved) {
+      setBanResult({ ok: false, error: resolved.error })
+      setTimeout(() => setBanResult(null), 3000)
+      return
+    }
     const res = await api.request({
       endpointId: 'moderation.ban',
-      params: { fleetId, userId: banPlayerId },
+      params: { fleetId, userId: resolved.userId },
       body: {
         reason: banReason,
         duration_hours: durationHours
@@ -58,9 +67,15 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
 
   async function handleUnban() {
     if (!unbanUserId.trim()) return
+    const resolved = await resolveUserId(fleetId, unbanUserId)
+    if ('error' in resolved) {
+      setUnbanResult({ ok: false, error: resolved.error })
+      setTimeout(() => setUnbanResult(null), 3000)
+      return
+    }
     const res = await api.request({
       endpointId: 'moderation.unban',
-      params: { fleetId, userId: unbanUserId }
+      params: { fleetId, userId: resolved.userId }
     })
     setUnbanResult({ ok: res.ok, error: res.error })
     if (res.ok) {
@@ -79,10 +94,10 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
               <Lock size={16} /> Ban Player
             </div>
             <div className="space-y-3">
-              <Field label="User ID">
+              <Field label="Player name or user ID">
                 <input
                   className="input"
-                  placeholder="User ID…"
+                  placeholder="e.g. Fairy- or 4086705431367530"
                   value={banPlayerId}
                   onChange={(e) => setBanPlayerId(e.target.value)}
                 />
@@ -131,10 +146,10 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
               <Trash2 size={16} /> Unban Player
             </div>
             <div className="space-y-3">
-              <Field label="User ID">
+              <Field label="Player name or user ID">
                 <input
-                  className="input mono text-[12px]"
-                  placeholder="User ID…"
+                  className="input text-[12px]"
+                  placeholder="e.g. Fairy- or 4086705431367530"
                   value={unbanUserId}
                   onChange={(e) => setUnbanUserId(e.target.value)}
                 />
@@ -172,7 +187,10 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
                     {bans.slice(0, 10).map((ban) => (
                       <div key={ban.id} className="text-[11px] p-2 bg-[var(--bg-deep)] rounded border border-[var(--border-soft)]">
                         <div className="flex items-center justify-between mb-1">
-                          <Badge tone="bad">{ban.userId}</Badge>
+                          <Badge tone="bad">{ban.username ?? ban.userId}</Badge>
+                          {showIds && ban.username && (
+                            <span className="mono text-[10px] text-[var(--text-faint)]">{ban.userId}</span>
+                          )}
                           {ban.expiresAt && (
                             <span className="text-[var(--text-dim)] text-[10px]">
                               {ts(ban.expiresAt)}
