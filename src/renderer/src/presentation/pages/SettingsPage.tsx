@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
+import { normalizeBaseUrl } from '@shared/registry'
+import { THEMES, type ThemeId } from '@shared/ipc'
 import { useAppStore } from '../../state/useAppStore'
 import { PageHeader, Card, Button, Field, Badge } from '../components/ui'
 
@@ -36,9 +38,9 @@ export default function SettingsPage() {
             className="input mono"
             value={draft.baseUrl}
             onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })}
-            placeholder="https://api.oriondrift.net"
+            placeholder="https://api.oriondrift.net/v2"
           />
-          {draft.baseUrl.trim() !== 'https://api.oriondrift.net' && (
+          {normalizeBaseUrl(draft.baseUrl.trim()) !== 'https://api.oriondrift.net' && (
             <span className="text-[12px] text-[var(--warn)] mt-1.5 inline-block">
               The official Orion Drift API host is <code className="mono">https://api.oriondrift.net</code>
               {' '}(verified from the dashboard client). Requests will fail against anything else.
@@ -69,10 +71,11 @@ export default function SettingsPage() {
           <select
             className="input"
             value={draft.theme}
-            onChange={(e) => setDraft({ ...draft, theme: e.target.value as 'dark' | 'light' })}
+            onChange={(e) => setDraft({ ...draft, theme: e.target.value as ThemeId })}
           >
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            {THEMES.map((t) => (
+              <option key={t.id} value={t.id}>{t.label}</option>
+            ))}
           </select>
         </Field>
 

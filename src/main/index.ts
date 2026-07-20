@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { appendFileSync } from 'node:fs'
 import { registerIpc } from './ipc'
@@ -33,6 +33,9 @@ function attachDiagnostics(win: BrowserWindow): void {
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
+  // No File/Edit/View menu bar. This also drops its accelerators, so the two
+  // worth keeping (devtools, reload) are re-bound below via before-input-event.
+  Menu.setApplicationMenu(null)
   mainWindow = new BrowserWindow({
     width: 1360,
     height: 900,
@@ -52,6 +55,15 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => mainWindow?.show())
   attachDiagnostics(mainWindow)
+
+  mainWindow.webContents.on('before-input-event', (_e, input) => {
+    if (input.type !== 'keyDown') return
+    if (input.key === 'F12' || (input.control && input.shift && input.key.toUpperCase() === 'I')) {
+      mainWindow?.webContents.toggleDevTools()
+    } else if (input.key === 'F5' || (input.control && input.key.toUpperCase() === 'R')) {
+      mainWindow?.webContents.reload()
+    }
+  })
 
   // Open external links in the OS browser, never in-app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

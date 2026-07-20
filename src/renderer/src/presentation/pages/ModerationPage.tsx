@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { Lock, Trash2, Clock } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Lock, Trash2, Clock, Maximize2, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
-import { PageHeader, Card, Button, Badge, Field, JsonBlock, EmptyState } from '../components/ui'
+import { PageHeader, Button, Badge, Field, JsonBlock, EmptyState } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
@@ -10,6 +10,53 @@ import { ts } from '../../lib/format'
 import { asBans } from '../../lib/bans'
 import { resolveUserId } from '../../lib/fleetUsers'
 import { useAppStore } from '../../state/useAppStore'
+
+/**
+ * Panel that can be popped out into a near-fullscreen overlay for better viewing.
+ * Escape or the backdrop closes it.
+ */
+function ExpandablePanel({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setExpanded(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [expanded])
+
+  const panel = (
+    <div className={expanded ? 'card p-6 w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl' : 'card p-5'}>
+      <div className="font-medium mb-4 flex items-center gap-2 text-[14.5px]">
+        {icon} {title}
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          title={expanded ? 'Close' : 'Enlarge'}
+          onClick={() => setExpanded(!expanded)}
+          className="!p-1.5"
+        >
+          {expanded ? <X size={16} /> : <Maximize2 size={14} className="text-[var(--text-faint)]" />}
+        </Button>
+      </div>
+      <div className={expanded ? 'overflow-y-auto flex-1 min-h-0' : undefined}>{children}</div>
+    </div>
+  )
+
+  if (!expanded) return panel
+  return (
+    <>
+      {/* keep the grid cell occupied while the overlay is open */}
+      <div className="card p-5 opacity-40 min-h-[80px]" />
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm"
+        onClick={(e) => e.target === e.currentTarget && setExpanded(false)}
+      >
+        {panel}
+      </div>
+    </>
+  )
+}
 
 export default function ModerationPage() {
   return (
@@ -87,13 +134,11 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
 
   return (
     <div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(360px,440px)_1fr] gap-5 items-start">
+        <div className="grid gap-5">
         <PermissionGate scope="user_ban:write">
-          <Card>
-            <div className="font-medium mb-4 flex items-center gap-2">
-              <Lock size={16} /> Ban Player
-            </div>
-            <div className="space-y-3">
+          <ExpandablePanel icon={<Lock size={16} />} title="Ban Player">
+            <div className="space-y-4">
               <Field label="Player name or user ID">
                 <input
                   className="input"
@@ -104,8 +149,8 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
               </Field>
               <Field label="Reason">
                 <textarea
-                  className="input text-[12px]"
-                  rows={2}
+                  className="input"
+                  rows={3}
                   placeholder="Reason…"
                   value={banReason}
                   onChange={(e) => setBanReason(e.target.value)}
@@ -133,22 +178,19 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
                   <Badge tone={banResult.ok ? 'good' : 'bad'}>
                     {banResult.ok ? 'Ban issued' : 'Ban failed'}
                   </Badge>
-                  {banResult.error && <JsonBlock value={banResult.error} className="max-h-32" />}
+                  {banResult.error && <JsonBlock value={banResult.error} className="max-h-40" />}
                 </>
               )}
             </div>
-          </Card>
+          </ExpandablePanel>
         </PermissionGate>
 
         <PermissionGate scope="user_ban:revoke">
-          <Card>
-            <div className="font-medium mb-4 flex items-center gap-2">
-              <Trash2 size={16} /> Unban Player
-            </div>
-            <div className="space-y-3">
+          <ExpandablePanel icon={<Trash2 size={16} />} title="Unban Player">
+            <div className="space-y-4">
               <Field label="Player name or user ID">
                 <input
-                  className="input text-[12px]"
+                  className="input"
                   placeholder="e.g. Fairy- or 4086705431367530"
                   value={unbanUserId}
                   onChange={(e) => setUnbanUserId(e.target.value)}
@@ -167,37 +209,35 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
                   <Badge tone={unbanResult.ok ? 'good' : 'bad'}>
                     {unbanResult.ok ? 'Ban removed' : 'Unban failed'}
                   </Badge>
-                  {unbanResult.error && <JsonBlock value={unbanResult.error} className="max-h-32" />}
+                  {unbanResult.error && <JsonBlock value={unbanResult.error} className="max-h-40" />}
                 </>
               )}
             </div>
-          </Card>
+          </ExpandablePanel>
         </PermissionGate>
+        </div>
 
         <PermissionGate scope="user_data:read">
-          <Card>
-            <div className="font-medium mb-4 flex items-center gap-2">
-              <Clock size={16} /> Recent Bans
-            </div>
+          <ExpandablePanel icon={<Clock size={16} />} title="Recent Bans">
             <RequestResult response={bansResponse} loading={bansLoading} onRetry={() => void runBans()}>
               {(raw) => {
                 const bans = asBans(raw)
                 return bans.length > 0 ? (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {bans.slice(0, 10).map((ban) => (
-                      <div key={ban.id} className="text-[11px] p-2 bg-[var(--bg-deep)] rounded border border-[var(--border-soft)]">
-                        <div className="flex items-center justify-between mb-1">
+                  <div className="space-y-2.5 max-h-[68vh] overflow-y-auto pr-1">
+                    {bans.slice(0, 50).map((ban) => (
+                      <div key={ban.id} className="text-[12.5px] p-3 bg-[var(--bg)] rounded-lg border border-[var(--border-soft)]">
+                        <div className="flex items-center justify-between gap-3 mb-1.5">
                           <Badge tone="bad">{ban.username ?? ban.userId}</Badge>
                           {showIds && ban.username && (
-                            <span className="mono text-[10px] text-[var(--text-faint)]">{ban.userId}</span>
+                            <span className="mono text-[11px] text-[var(--text-faint)]">{ban.userId}</span>
                           )}
                           {ban.expiresAt && (
-                            <span className="text-[var(--text-dim)] text-[10px]">
-                              {ts(ban.expiresAt)}
+                            <span className="text-[var(--text-dim)] text-[11px] shrink-0">
+                              expires {ts(ban.expiresAt)}
                             </span>
                           )}
                         </div>
-                        <p className="text-[var(--text-dim)] truncate">{ban.reason}</p>
+                        <p className="text-[var(--text-dim)]">{ban.reason}</p>
                       </div>
                     ))}
                   </div>
@@ -206,7 +246,7 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
                 )
               }}
             </RequestResult>
-          </Card>
+          </ExpandablePanel>
         </PermissionGate>
       </div>
     </div>

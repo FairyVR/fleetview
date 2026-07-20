@@ -41,11 +41,27 @@ export const CHANNELS = {
   secureAvailable: 'system:secureAvailable'
 } as const
 
+export type ThemeId = 'dark' | 'midnight' | 'nebula' | 'aurora' | 'light' | 'solar'
+
+/** All selectable color themes. `light: true` = light-background theme (drives e.g. Monaco). */
+export const THEMES: ReadonlyArray<{ id: ThemeId; label: string; light?: boolean }> = [
+  { id: 'dark', label: 'Dark — deep space' },
+  { id: 'midnight', label: 'Midnight — near black' },
+  { id: 'nebula', label: 'Nebula — violet haze' },
+  { id: 'aurora', label: 'Aurora — emerald dark' },
+  { id: 'light', label: 'Light — daylight', light: true },
+  { id: 'solar', label: 'Solar — warm paper', light: true }
+]
+
+export function isLightTheme(theme: string | undefined): boolean {
+  return !!THEMES.find((t) => t.id === theme)?.light
+}
+
 export interface AppSettings {
   baseUrl: string
   requestTimeoutMs: number
   maxRetries: number
-  theme: 'dark' | 'light'
+  theme: ThemeId
   developerMode: boolean
   /** Show internal IDs (fleet/station/player) in lists. Off by default. */
   showIds: boolean

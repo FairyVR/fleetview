@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { KeyRound, ShieldCheck, Rocket, Server, Radar, AlertTriangle } from 'lucide-react'
+import {
+  KeyRound,
+  ShieldCheck,
+  Rocket,
+  Server,
+  Radar,
+  AlertTriangle,
+  ChevronRight,
+  Library
+} from 'lucide-react'
 import { useAppStore } from '../../state/useAppStore'
 import { api } from '../../lib/api'
 import { ago } from '../../lib/format'
@@ -24,11 +33,21 @@ export default function DashboardPage() {
     setBusy(false)
   }
 
+  const allGrants = Object.entries(permissions.grants ?? {})
+  // Only fleets with more than bare fleet:read are worth listing here.
+  const grants = allGrants.filter(([, scopes]) => scopes.some((s) => s !== 'fleet:read'))
+  // Fleet names live in the raw fleet list kept alongside the discovered grants.
+  const fleetNames: Record<string, string> = {}
+  for (const f of (permissions.raw as { items?: unknown[] } | null)?.items ?? []) {
+    const o = f as Record<string, unknown>
+    if (typeof o.fleet_id === 'string' && typeof o.fleet_name === 'string') fleetNames[o.fleet_id] = o.fleet_name
+  }
+
   return (
-    <div>
+    <div className="max-w-5xl">
       <PageHeader
-        title="Dashboard"
-        subtitle="Fleet and station control at a glance. Everything is scoped to the active API key's discovered permissions."
+        title="Overview"
+        subtitle="Fleet and station control at a glance, scoped to the active key."
       />
 
       {placeholderBase && (
@@ -42,108 +61,152 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Active key */}
-        <Card className="lg:col-span-2 grid gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <KeyRound size={16} className="text-[var(--accent)]" />
-              <span className="font-semibold">Active key</span>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 items-start">
+        <div className="grid gap-4">
+          {/* Active key — identity, not numbers */}
+          <div
+            className="card p-5 relative overflow-hidden"
+            style={{
+              backgroundImage:
+                'radial-gradient(600px 220px at 85% -60px, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 70%)'
+            }}
+          >
             {active ? (
-              <Button disabled={busy} onClick={() => void discover()}>
-                <Radar size={14} /> {busy ? 'Discovering…' : 'Discover permissions'}
-              </Button>
+              <>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-faint)] mb-2 flex items-center gap-1.5">
+                      <KeyRound size={12} /> Active key
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <StatusDot status={active.health === 'valid' ? 'good' : active.health === 'unknown' ? 'idle' : 'bad'} />
+                      <span className="text-lg font-semibold tracking-tight truncate">{active.name}</span>
+                    </div>
+                    <div className="text-[12px] text-[var(--text-dim)] mono mt-1.5">
+                      {active.maskedHint} · validated {ago(active.lastValidatedAt)}
+                    </div>
+                  </div>
+                  <Button disabled={busy} onClick={() => void discover()} className="shrink-0">
+                    <Radar size={14} /> {busy ? 'Discovering…' : 'Discover permissions'}
+                  </Button>
+                </div>
+              </>
             ) : (
-              <Button variant="primary" onClick={() => navigate('/keys')}>Add a key</Button>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-faint)] mb-1.5 flex items-center gap-1.5">
+                    <KeyRound size={12} /> Active key
+                  </div>
+                  <div className="text-[13px] text-[var(--text-dim)]">No key yet — add one to bring FleetView online.</div>
+                </div>
+                <Button variant="primary" onClick={() => navigate('/keys')}>Add a key</Button>
+              </div>
             )}
           </div>
 
-          {active ? (
-            <>
-              <div className="flex items-center gap-3">
-                <StatusDot status={active.health === 'valid' ? 'good' : active.health === 'unknown' ? 'idle' : 'bad'} />
-                <div>
-                  <div className="font-medium">{active.name}</div>
-                  <div className="text-[12px] text-[var(--text-dim)] mono">{active.maskedHint} · validated {ago(active.lastValidatedAt)}</div>
-                </div>
+          {/* Access — per-fleet grants as a tidy list */}
+          {active && (
+            <Card className="p-0 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-[var(--border-soft)] flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-[var(--text-faint)]">
+                <ShieldCheck size={12} /> Fleet access
               </div>
-              <div>
-                <div className="label flex items-center gap-1.5">
-                  <ShieldCheck size={12} /> Permissions (granted per fleet)
-                </div>
-                {Object.keys(permissions.grants ?? {}).length > 0 ? (
-                  <div className="grid gap-2.5">
-                    {Object.entries(permissions.grants).map(([fleet, scopes]) => (
-                      <div key={fleet}>
-                        <div className="text-[12px] text-[var(--text-dim)] mb-1">{fleet}</div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {scopes.includes('admin') && (
-                            <Badge tone="good">admin — all permissions</Badge>
+              {grants.length > 0 ? (
+                <div className="divide-y divide-[var(--border-soft)]">
+                  {grants.map(([fleet, scopes]) => {
+                    const admin = scopes.includes('admin')
+                    const rest = scopes.filter((s) => s !== 'admin')
+                    return (
+                      <div key={fleet} className="px-5 py-3 flex items-center justify-between gap-4">
+                        <div className="font-medium text-[13.5px] truncate">{fleetNames[fleet] ?? fleet}</div>
+                        <div className="flex flex-wrap gap-1.5 justify-end shrink-0">
+                          {admin ? (
+                            <Badge tone="good">admin — full access</Badge>
+                          ) : (
+                            <>
+                              {rest.slice(0, 3).map((s) => (
+                                <Badge key={s} tone="accent">{s}</Badge>
+                              ))}
+                              {rest.length > 3 && <Badge>+{rest.length - 3} more</Badge>}
+                            </>
                           )}
-                          {scopes
-                            .filter((s) => s !== 'admin')
-                            .map((s) => (
-                              <Badge key={s} tone="accent">
-                                {s}
-                              </Badge>
-                            ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-[12px] text-[var(--text-faint)] mt-1">
-                    Permissions not discovered yet — run discovery to see per-fleet grants.
-                    Until then, actions are attempted and the server decides.
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="text-[13px] text-[var(--text-dim)]">No active key. Add one to begin.</div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="px-5 py-4 text-[12.5px] text-[var(--text-faint)]">
+                  {allGrants.length > 0
+                    ? 'This key only has read access — no fleets with elevated permissions.'
+                    : 'Permissions not discovered yet — run discovery to see per-fleet grants. Until then, actions are attempted and the server decides.'}
+                </div>
+              )}
+            </Card>
           )}
-        </Card>
-
-        {/* Quick stats */}
-        <div className="grid gap-4">
-          <Stat
-            icon={<Rocket size={16} />}
-            label="Fleets with grants"
-            value={Object.keys(permissions.grants ?? {}).length || '—'}
-            onClick={() => navigate('/fleets')}
-          />
-          <Stat
-            icon={<Server size={16} />}
-            label="Distinct scopes"
-            value={new Set(Object.values(permissions.grants ?? {}).flat()).size || '—'}
-            onClick={() => navigate('/stations')}
-          />
-          <Stat icon={<KeyRound size={16} />} label="Stored keys" value={keys.length} onClick={() => navigate('/keys')} />
-          <Stat icon={<ShieldCheck size={16} />} label="LE configs saved" value={libCount} onClick={() => navigate('/le-library')} />
         </div>
+
+        {/* Go places — navigation first, counts as whispers */}
+        <Card className="p-0 overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-[var(--border-soft)] text-[11px] uppercase tracking-[0.14em] text-[var(--text-faint)]">
+            Jump to
+          </div>
+          <div className="divide-y divide-[var(--border-soft)]">
+            <NavRow
+              icon={<Rocket size={15} />}
+              label="Fleet Explorer"
+              detail={allGrants.length ? `${allGrants.length} fleet${allGrants.length === 1 ? '' : 's'} granted` : 'browse your fleets'}
+              onClick={() => navigate('/fleets')}
+            />
+            <NavRow
+              icon={<Server size={15} />}
+              label="Station Manager"
+              detail="boards, gamemodes, events"
+              onClick={() => navigate('/stations')}
+            />
+            <NavRow
+              icon={<KeyRound size={15} />}
+              label="API Keys"
+              detail={`${keys.length} stored`}
+              onClick={() => navigate('/keys')}
+            />
+            <NavRow
+              icon={<Library size={15} />}
+              label="LE Library"
+              detail={`${libCount} saved config${libCount === 1 ? '' : 's'}`}
+              onClick={() => navigate('/le-library')}
+            />
+          </div>
+        </Card>
       </div>
     </div>
   )
 }
 
-function Stat({
+function NavRow({
   icon,
   label,
-  value,
+  detail,
   onClick
 }: {
   icon: React.ReactNode
   label: string
-  value: string | number
+  detail: string
   onClick: () => void
 }) {
   return (
-    <button onClick={onClick} className="card p-4 text-left hover:border-[var(--border)] transition-colors">
-      <div className="flex items-center gap-2 text-[var(--text-dim)] text-[12px]">
-        {icon} {label}
-      </div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
+    <button
+      onClick={onClick}
+      className="w-full px-4 py-3 flex items-center gap-3 text-left transition-colors hover:bg-[var(--bg-elev-2)] group"
+    >
+      <span className="text-[var(--accent)] shrink-0">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium">{label}</span>
+        <span className="block text-[11.5px] text-[var(--text-faint)] truncate">{detail}</span>
+      </span>
+      <ChevronRight
+        size={14}
+        className="text-[var(--text-faint)] shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--text-dim)]"
+      />
     </button>
   )
 }

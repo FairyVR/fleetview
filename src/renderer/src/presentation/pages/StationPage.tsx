@@ -10,6 +10,7 @@ import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { JsonEditor, validateJson } from '../components/JsonEditor'
 import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
+import { stationPlayerCounts } from '../../lib/presence'
 import { regionLabel } from '../../lib/format'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
@@ -54,6 +55,14 @@ export default function StationPage() {
     auto: !!fleetId,
     enabled: !!fleetId
   })
+  // Live player counts: the stations payload's player_count is stale/absent, so
+  // pull the freshest `state` event per station from the fleet event feed.
+  const { response: eventsResponse, run: runEvents } = useEndpoint('events.fleet', {
+    params: fleetId ? { fleetId } : undefined,
+    auto: !!fleetId,
+    enabled: !!fleetId
+  })
+  const liveCounts = stationPlayerCounts(eventsResponse?.ok ? eventsResponse.data : null)
 
   if (!fleetId) {
     return (
@@ -76,11 +85,14 @@ export default function StationPage() {
       <PageHeader
         title="Station Manager"
         subtitle={`Stations in ${fleetName ?? fleetId}. Select one to enable board, gamemode, events, and match modules.`}
-        actions={<Button onClick={() => void run()}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</Button>}
+        actions={<Button onClick={() => { void run(); void runEvents() }}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</Button>}
       />
       <RequestResult response={response} loading={loading} onRetry={() => void run()}>
         {(raw) => {
-          const stations = asStations(raw, fleetId)
+          const stations = asStations(raw, fleetId).map((s) => ({
+            ...s,
+            playerCount: liveCounts.get(s.id) ?? s.playerCount
+          }))
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {stations.map((s) => (

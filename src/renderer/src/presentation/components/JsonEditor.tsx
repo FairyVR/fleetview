@@ -3,7 +3,14 @@ import Editor, { DiffEditor } from '@monaco-editor/react'
 import { monaco } from '../../lib/monaco-setup'
 import type { editor } from 'monaco-editor'
 import { Undo2, Redo2, WrapText, Search, Replace } from 'lucide-react'
+import { isLightTheme } from '@shared/ipc'
+import { useAppStore } from '../../state/useAppStore'
 import { Button } from './ui'
+
+function useMonacoTheme(): string {
+  const theme = useAppStore((s) => s.settings?.theme)
+  return isLightTheme(theme) ? 'light' : 'vs-dark'
+}
 
 const OPTIONS: editor.IStandaloneEditorConstructionOptions = {
   minimap: { enabled: false },
@@ -27,6 +34,7 @@ export function JsonEditor({
   height?: number | string
 }) {
   const ref = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const monacoTheme = useMonacoTheme()
 
   const act = (id: string) => ref.current?.getAction(id)?.run()
 
@@ -52,7 +60,7 @@ export function JsonEditor({
       <Editor
         height={height}
         language="json"
-        theme="vs-dark"
+        theme={monacoTheme}
         value={value}
         options={OPTIONS}
         onChange={(v) => onChange(v ?? '')}
@@ -66,12 +74,13 @@ export function JsonEditor({
 
 /** Side-by-side diff view (original vs modified). */
 export function JsonDiff({ original, modified, height = 420 }: { original: string; modified: string; height?: number }) {
+  const monacoTheme = useMonacoTheme()
   return (
     <div className="rounded-lg overflow-hidden border border-[var(--border-soft)]">
       <DiffEditor
         height={height}
         language="json"
-        theme="vs-dark"
+        theme={monacoTheme}
         original={original}
         modified={modified}
         options={{ ...OPTIONS, readOnly: true, renderSideBySide: true }}

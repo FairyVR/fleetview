@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 
-/* FleetView design tokens — deep-space dashboard aesthetic. */
-:root {
+/* FleetView design tokens — deep-space dashboard aesthetic.
+   Themes swap this palette via data-theme on <html> (set from Settings). */
+:root,
+:root[data-theme='dark'] {
   --bg: #0b0f17;
   --bg-elev: #121826;
   --bg-elev-2: #182034;
@@ -15,6 +17,86 @@
   --good: #46d19a;
   --warn: #f5c451;
   --bad: #f2678b;
+}
+
+:root[data-theme='midnight'] {
+  --bg: #030509;
+  --bg-elev: #070b13;
+  --bg-elev-2: #0c1220;
+  --border: #1a2338;
+  --border-soft: #111927;
+  --text: #dbe4f5;
+  --text-dim: #8593b3;
+  --text-faint: #4f5c7a;
+  --accent: #6f8dff;
+  --accent-2: #4b6bfa;
+  --good: #3ecf94;
+  --warn: #e8b64a;
+  --bad: #ef6288;
+}
+
+:root[data-theme='nebula'] {
+  --bg: #0e0a1c;
+  --bg-elev: #171029;
+  --bg-elev-2: #201739;
+  --border: #372b58;
+  --border-soft: #261d42;
+  --text: #ece6fa;
+  --text-dim: #a396c9;
+  --text-faint: #6f639a;
+  --accent: #e879f9;
+  --accent-2: #c936ea;
+  --good: #4ade80;
+  --warn: #facc15;
+  --bad: #fb7185;
+}
+
+:root[data-theme='aurora'] {
+  --bg: #071310;
+  --bg-elev: #0c1c17;
+  --bg-elev-2: #12261f;
+  --border: #23423a;
+  --border-soft: #183029;
+  --text: #e2f2ec;
+  --text-dim: #93b8ac;
+  --text-faint: #5f8478;
+  --accent: #34d399;
+  --accent-2: #0ea973;
+  --good: #4ade80;
+  --warn: #eab308;
+  --bad: #f87171;
+}
+
+:root[data-theme='light'] {
+  --bg: #f3f5fa;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #e9edf6;
+  --border: #c7d2e6;
+  --border-soft: #dde4f0;
+  --text: #182034;
+  --text-dim: #4e5d7c;
+  --text-faint: #8593ad;
+  --accent: #9333ea;
+  --accent-2: #7c22ce;
+  --good: #0e9f6e;
+  --warn: #a16207;
+  --bad: #d62c66;
+}
+
+:root[data-theme='solar'] {
+  --bg: #faf5ec;
+  --bg-elev: #fffdf7;
+  --bg-elev-2: #f2ebdb;
+  --border: #d8ccae;
+  --border-soft: #e8e0cc;
+  --text: #2c2617;
+  --text-dim: #6d6350;
+  --text-faint: #9a8f78;
+  --accent: #d97706;
+  --accent-2: #b45309;
+  --good: #15803d;
+  --warn: #ca8a04;
+  --bad: #dc2626;
 }
 
 html,
@@ -76,7 +158,11 @@ body {
   cursor: not-allowed;
 }
 .btn-primary {
-  background: linear-gradient(180deg, var(--accent-2), #7c1cc9);
+  background: linear-gradient(
+    180deg,
+    var(--accent-2),
+    color-mix(in srgb, var(--accent-2) 78%, #000)
+  );
   border-color: transparent;
   color: #fff;
   font-weight: 600;

@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import badge from '../../assets/founder_badge.png'
 import wordmark from '../../assets/od-wordmark.png'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { NAV } from '../nav'
 import { cn } from '../../lib/cn'
 import { useAppStore } from '../../state/useAppStore'
@@ -44,6 +44,9 @@ function KeySwitcher() {
 export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const settings = useAppStore((s) => s.settings)
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings?.theme ?? 'dark'
+  }, [settings?.theme])
   const baseUrl = settings?.baseUrl ?? ''
   // The real host is https://api.oriondrift.net; flag anything unset/obviously wrong.
   const placeholderBase = !baseUrl || baseUrl.includes('example')

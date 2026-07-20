@@ -1,6 +1,7 @@
 import Store from 'electron-store'
 import type { ApiKeyRecord, PermissionSet } from '@shared/models'
 import type { LeConfig, Preset } from '@shared/models'
+import type { ThemeId } from '@shared/ipc'
 
 /** App settings. */
 export interface Settings {
@@ -9,13 +10,13 @@ export interface Settings {
   activeKeyId: string | null
   requestTimeoutMs: number
   maxRetries: number
-  theme: 'dark' | 'light'
+  theme: ThemeId
   developerMode: boolean
   showIds: boolean
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  baseUrl: 'https://api.oriondrift.net',
+  baseUrl: 'https://api.oriondrift.net/v2',
   activeKeyId: null,
   requestTimeoutMs: 15000,
   maxRetries: 2,
