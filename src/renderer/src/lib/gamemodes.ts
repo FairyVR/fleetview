@@ -5,14 +5,12 @@
  * Provided by the fleet operator; extend freely.
  */
 export const GAMEMODE_GROUPS: Record<string, Record<string, string>> = {
-  TKB: {
+  Driftball: {
     tkb_prime: 'Prime Arena',
     tkb_bunker: 'Bunker',
     tkb_fieldhousewest: 'Fieldhouse West',
     tkb_fieldhouseeast: 'Fieldhouse East',
-    tkb_plazaeast: 'Plaza East'
-  },
-  Driftball: {
+    tkb_plazaeast: 'Plaza East',
     'driftball east 01': 'Front East 4v4 Arena',
     'driftball east 02': 'Back East 4v4 Arena',
     'driftball west 01': 'Front West 4v4 Arena',

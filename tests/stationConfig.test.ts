@@ -53,7 +53,7 @@ describe('gamemode naming', () => {
   it('maps known ids case-insensitively', () => {
     expect(gamemodeDisplayName('tkb_prime')).toBe('Prime Arena')
     expect(gamemodeDisplayName('TKB_Prime')).toBe('Prime Arena')
-    expect(gamemodeGroup('TKB_Bunker')).toBe('TKB')
+    expect(gamemodeGroup('TKB_Bunker')).toBe('Driftball')
   })
 
   it('treats spaces and underscores as the same separator', () => {
