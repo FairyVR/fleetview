@@ -29,6 +29,13 @@ export default function GamemodePage() {
   )
 }
 
+/** Sort arenas by their tag, in GAMEMODE_GROUPS order; ungrouped extras go last. */
+const GROUP_ORDER = Object.keys(GAMEMODE_GROUPS)
+function groupRank(group: string | null): number {
+  const i = group ? GROUP_ORDER.indexOf(group) : -1
+  return i === -1 ? GROUP_ORDER.length : i
+}
+
 /** Segmented true/false toggle — the chosen side is highlighted; neither when unset. */
 function BoolToggle({ value, onChange }: { value?: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -180,12 +187,13 @@ function ConfigEditor({ stationId }: { stationId: string }) {
     })
   }
 
-  function selectGroup(group: string | 'all' | 'none') {
+  /** Plain click replaces the selection with the group; Ctrl/Cmd+click adds it. */
+  function selectGroup(group: string | 'all' | 'none', add = false) {
     if (group === 'none') return setSelectedGms(new Set())
     const ids = [...gamemodes.entries()]
       .filter(([, gm]) => group === 'all' || gm.group === group)
       .map(([lower]) => lower)
-    setSelectedGms(new Set(ids))
+    setSelectedGms((s) => new Set(add ? [...s, ...ids] : ids))
   }
 
   // ---- persistence: POST only changed keys, flat, stringified (the shape the API accepts) ----
@@ -333,7 +341,12 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                 <>
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {groupNames.map((g) => (
-                      <Button key={g} variant="ghost" onClick={() => selectGroup(g)}>
+                      <Button
+                        key={g}
+                        variant="ghost"
+                        title="Click to select this category — Ctrl+click to add more categories"
+                        onClick={(e) => selectGroup(g, e.ctrlKey || e.metaKey)}
+                      >
                         {g}
                       </Button>
                     ))}
@@ -343,7 +356,11 @@ function ConfigEditor({ stationId }: { stationId: string }) {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5 mb-4">
                     {[...gamemodes.entries()]
-                      .sort((a, b) => a[1].display.localeCompare(b[1].display))
+                      .sort(
+                        (a, b) =>
+                          groupRank(a[1].group) - groupRank(b[1].group) ||
+                          a[1].display.localeCompare(b[1].display)
+                      )
                       .map(([lower, gm]) => (
                         <label
                           key={lower}
