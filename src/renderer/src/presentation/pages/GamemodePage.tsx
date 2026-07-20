@@ -15,7 +15,7 @@ import {
   CONFIG_WRITE_PARAMS,
   DEFAULT_GM_FIELDS
 } from '../../lib/stationConfig'
-import { GAMEMODE_GROUPS, gamemodeDisplayName, gamemodeGroup } from '../../lib/gamemodes'
+import { GAMEMODE_GROUPS, gamemodeDisplayName, gamemodeGroup, normalizeGamemodeId } from '../../lib/gamemodes'
 
 export default function GamemodePage() {
   return (
@@ -119,13 +119,18 @@ function ConfigEditor({ stationId }: { stationId: string }) {
 
   const gamemodes = useMemo(() => {
     const map = new Map<string, GmEntry>()
+    // Every fleet ships these arenas by default — always list them, overrides or not.
+    for (const [group, ids] of Object.entries(GAMEMODE_GROUPS))
+      for (const [id, display] of Object.entries(ids))
+        map.set(normalizeGamemodeId(id), { id, display, group, fields: {} })
     for (const key of Object.keys(edited)) {
       const c = classifyKey(key)
       if (c.kind !== 'gamemode') continue
-      const lower = c.gm.toLowerCase()
+      const lower = normalizeGamemodeId(c.gm)
       const entry =
         map.get(lower) ??
         ({ id: c.gm, display: gamemodeDisplayName(c.gm), group: gamemodeGroup(c.gm), fields: {} } as GmEntry)
+      entry.id = c.gm // live config casing wins so new writes match existing keys
       entry.fields[c.field.toLowerCase()] = key
       map.set(lower, entry)
     }
@@ -317,7 +322,7 @@ function ConfigEditor({ stationId }: { stationId: string }) {
               <div className="flex items-center gap-2 mb-3">
                 <Gamepad2 size={15} className="text-[var(--accent)]" />
                 <span className="font-medium text-[13px]">Gamemode editor</span>
-                <Badge tone="accent">{gamemodes.size} arenas in config</Badge>
+                <Badge tone="accent">{gamemodes.size} arenas</Badge>
               </div>
 
               {gamemodes.size === 0 ? (

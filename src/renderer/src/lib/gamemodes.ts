@@ -30,8 +30,9 @@ export const GAMEMODE_GROUPS: Record<string, Record<string, string>> = {
   }
 }
 
-/** Config ids mix separators freely (`fieldhouse 03` vs `fieldhouse_03`) — normalize both sides. */
-const norm = (id: string): string => id.toLowerCase().replace(/[\s_]+/g, '_')
+/** Config ids mix separators freely (`driftball east 01` vs `driftball_east_01`) — normalize both sides. */
+export const normalizeGamemodeId = (id: string): string => id.toLowerCase().replace(/[\s_]+/g, '_')
+const norm = normalizeGamemodeId
 
 const FLAT: Record<string, string> = Object.fromEntries(
   Object.values(GAMEMODE_GROUPS).flatMap((ids) => Object.entries(ids).map(([k, v]) => [norm(k), v]))
