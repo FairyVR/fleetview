@@ -29,6 +29,28 @@ export default function GamemodePage() {
   )
 }
 
+/** Segmented true/false toggle — the chosen side is highlighted; neither when unset. */
+function BoolToggle({ value, onChange }: { value?: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="grid grid-cols-2 rounded-lg border border-[var(--border)] overflow-hidden text-[12px]">
+      {[true, false].map((v) => (
+        <button
+          key={String(v)}
+          type="button"
+          onClick={() => onChange(v)}
+          className={
+            value === v
+              ? 'py-1.5 font-semibold text-white bg-[var(--accent-2)]'
+              : 'py-1.5 text-[var(--text-dim)] bg-[var(--bg-elev-2)] hover:text-[var(--text)] transition-colors'
+          }
+        >
+          {String(v)}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** One typed input matched to the value's type: booleans get a selector, never a text field. */
 function ValueInput({
   value,
@@ -38,12 +60,7 @@ function ValueInput({
   onChange: (v: unknown) => void
 }) {
   if (typeof value === 'boolean') {
-    return (
-      <select className="input text-[12px]" value={String(value)} onChange={(e) => onChange(e.target.value === 'true')}>
-        <option value="true">true</option>
-        <option value="false">false</option>
-      </select>
-    )
+    return <BoolToggle value={value} onChange={onChange} />
   }
   if (typeof value === 'number') {
     return (
@@ -277,15 +294,7 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                     <div key={key} className="grid grid-cols-[minmax(180px,1fr)_minmax(140px,220px)] gap-3 items-center">
                       <span className="mono text-[11px] text-[var(--text-dim)] break-all">{key}</span>
                       {unset && pinned?.type === 'boolean' ? (
-                        <select
-                          className="input text-[12px]"
-                          value=""
-                          onChange={(e) => e.target.value !== '' && setValue(key, e.target.value === 'true')}
-                        >
-                          <option value="">— not set —</option>
-                          <option value="true">true</option>
-                          <option value="false">false</option>
-                        </select>
+                        <BoolToggle onChange={(v) => setValue(key, v)} />
                       ) : unset && pinned?.type === 'number' ? (
                         <input
                           className="input text-[12px]"
@@ -379,17 +388,7 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                                 }}
                               />
                             ) : preset?.type === 'boolean' ? (
-                              <select
-                                className="input text-[12px]"
-                                value=""
-                                onChange={(e) =>
-                                  e.target.value !== '' && setFieldForSelection(field, e.target.value === 'true')
-                                }
-                              >
-                                <option value="">— not set —</option>
-                                <option value="true">true</option>
-                                <option value="false">false</option>
-                              </select>
+                              <BoolToggle onChange={(v) => setFieldForSelection(field, v)} />
                             ) : preset?.type === 'number' ? (
                               <input
                                 className="input text-[12px]"
