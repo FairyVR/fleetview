@@ -5,45 +5,28 @@
  * Provided by the fleet operator; extend freely.
  */
 export const GAMEMODE_GROUPS: Record<string, Record<string, string>> = {
-  'Strike Arenas': {
-    '0800_full_4': 'Farthest Back Left Strike Arena',
-    '0800_full_2': 'Farthest Back Right Strike Arena',
-    '1200_full_weekly_race': '1st 1v1 Strike Arena',
-    '0800_full_3': '2nd 1v1 Strike Arena',
-    '1200_full_4': 'First 3v3 Strike Arena',
-    '1200_full_2': 'First 2v2 Strike Arena',
-    '0800_full_1': 'Third 2v2 Strike Arena',
-    '1200_full_3': 'Second 2v2 Strike Arena'
-  },
-  Fieldhouse: {
-    'fieldhouse 03': 'First Strike Arena on the Right',
-    'fieldhouse 04': 'First Strike Arena on the Left',
-    'fieldhouse 05': 'Back Right Strike Arena',
-    'fieldhouse 06': 'Back Left Strike Arena'
-  },
   TKB: {
-    tkb_plazaeast: 'Plaza East',
-    tkb_plazawest: 'Plaza West',
     tkb_prime: 'Prime Arena',
-    tkb_fieldhouseeast: 'Fieldhouse East',
+    tkb_bunker: 'Bunker',
     tkb_fieldhousewest: 'Fieldhouse West',
-    tkb_bunker: 'Bunker'
+    tkb_fieldhouseeast: 'Fieldhouse East',
+    tkb_plazaeast: 'Plaza East'
   },
-  'Driftball 4v4': {
-    'driftball east 01': 'East Front 4v4 Arena',
-    'driftball east 02': 'East Back 4v4 Arena',
-    'driftball west 01': 'West Front 4v4 Arena',
-    'driftball west 02': 'West Back 4v4 Arena'
-  },
-  'Z Drift': {
-    zdrift_01: 'Left Z Drift',
-    zdriftgamejam1: 'Middle Z Drift',
-    zdrift_02: 'Right Z Drift'
+  Driftball: {
+    'driftball east 01': 'Front East 4v4 Arena',
+    'driftball east 02': 'Back East 4v4 Arena',
+    'driftball west 01': 'Front West 4v4 Arena',
+    'driftball west 02': 'Back West 4v4 Arena',
+    'driftball halfg': 'HalfG 3v3 Arena'
   },
   Driftblitz: {
-    driftplexsoccerwestback: 'Back Driftblitz',
-    driftplexsoccerwestfront: 'Front Driftblitz',
-    soccerhalfg: 'Half G Driftblitz'
+    driftplexsoccerwestfront: 'Front Driftblitz Arena',
+    driftplexsoccerwestback: 'Back Driftblitz Arena'
+  },
+  'Z Drift': {
+    zdrift_01: 'Left Z Drift Arena',
+    zdriftgamejam1: 'Center Z Drift Arena',
+    zdrift_02: 'Right Z Drift Arena'
   }
 }
 
