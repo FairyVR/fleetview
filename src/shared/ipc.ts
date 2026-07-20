@@ -8,7 +8,8 @@ import type {
   RequestLogEntry,
   LeConfig,
   Preset,
-  LibraryBundle
+  LibraryBundle,
+  SharedLeConfig
 } from './models'
 
 /** IPC channel names. Single source of truth for main + preload. */
@@ -38,6 +39,11 @@ export const CHANNELS = {
   presetDelete: 'library:presetDelete',
   bundleExport: 'library:bundleExport',
   bundleImport: 'library:bundleImport',
+  shareStatus: 'share:status',
+  shareSetToken: 'share:setToken',
+  shareClearToken: 'share:clearToken',
+  shareList: 'share:list',
+  shareContribute: 'share:contribute',
   secureAvailable: 'system:secureAvailable'
 } as const
 
@@ -97,6 +103,13 @@ export interface FleetViewApi {
   listPresets(): Promise<Preset[]>
   savePreset(input: Partial<Preset> & { kind: Preset['kind']; name: string; data: unknown }): Promise<Preset>
   deletePreset(id: string): Promise<void>
+
+  /** Shared GitHub-backed LE library. Opt-in: nothing uploads except via contributeSharedConfig. */
+  getShareStatus(): Promise<{ hasToken: boolean; repo: string }>
+  setShareToken(token: string): Promise<{ ok: boolean; error?: string }>
+  clearShareToken(): Promise<void>
+  listSharedConfigs(): Promise<{ ok: boolean; error?: string; data?: SharedLeConfig[] }>
+  contributeSharedConfig(config: SharedLeConfig): Promise<{ ok: boolean; error?: string }>
 
   exportBundle(): Promise<LibraryBundle>
   importBundle(bundle: LibraryBundle): Promise<{ leConfigs: number; presets: number }>

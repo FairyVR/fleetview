@@ -37,6 +37,12 @@ const api: FleetViewApi = {
   savePreset: (input) => ipcRenderer.invoke(CHANNELS.presetSave, input),
   deletePreset: (id) => ipcRenderer.invoke(CHANNELS.presetDelete, id),
 
+  getShareStatus: () => ipcRenderer.invoke(CHANNELS.shareStatus),
+  setShareToken: (token) => ipcRenderer.invoke(CHANNELS.shareSetToken, token),
+  clearShareToken: () => ipcRenderer.invoke(CHANNELS.shareClearToken),
+  listSharedConfigs: () => ipcRenderer.invoke(CHANNELS.shareList),
+  contributeSharedConfig: (config) => ipcRenderer.invoke(CHANNELS.shareContribute, config),
+
   exportBundle: () => ipcRenderer.invoke(CHANNELS.bundleExport),
   importBundle: (bundle) => ipcRenderer.invoke(CHANNELS.bundleImport, bundle),
 

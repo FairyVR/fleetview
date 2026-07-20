@@ -45,6 +45,27 @@ export interface Preset {
   modifiedAt: number
 }
 
+/**
+ * One LE config published to the shared GitHub library. Sharing is strictly opt-in —
+ * a config only becomes a SharedLeConfig when its owner clicks Share.
+ */
+export interface SharedLeConfig {
+  id: string
+  name: string
+  description?: string
+  author?: string
+  category?: string
+  code: string
+  tags: string[]
+  sharedBy: string
+  sharedAt: number
+}
+
+/** Merge one config into a library's config list, replacing any entry with the same id. */
+export function mergeSharedConfig(configs: SharedLeConfig[], config: SharedLeConfig): SharedLeConfig[] {
+  return [...configs.filter((c) => c.id !== config.id), config]
+}
+
 /** Shape of an exported/imported library bundle. */
 export interface LibraryBundle {
   version: 1

@@ -27,6 +27,14 @@ import {
   exportBundle,
   importBundle
 } from './library-service'
+import {
+  SHARE_REPO,
+  hasShareToken,
+  setShareToken,
+  clearShareToken,
+  listShared,
+  contributeShared
+} from './share-service'
 
 function readSettings(): AppSettings {
   return {
@@ -81,6 +89,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   h(CHANNELS.presetDelete, (_e, id: string) => deletePreset(id))
   h(CHANNELS.bundleExport, () => exportBundle())
   h(CHANNELS.bundleImport, (_e, bundle) => importBundle(bundle))
+
+  // Shared library (GitHub-backed)
+  h(CHANNELS.shareStatus, () => ({ hasToken: hasShareToken(), repo: SHARE_REPO }))
+  h(CHANNELS.shareSetToken, (_e, token: string) => setShareToken(token))
+  h(CHANNELS.shareClearToken, () => clearShareToken())
+  h(CHANNELS.shareList, () => listShared())
+  h(CHANNELS.shareContribute, (_e, config) => contributeShared(config))
 
   // System
   h(CHANNELS.secureAvailable, () => isEncryptionAvailable())
