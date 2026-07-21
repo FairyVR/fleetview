@@ -1,31 +1,37 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
-import { roleTokens, userHasRole, type FleetUser } from '../src/renderer/src/lib/fleetUsers'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-describe('roleTokens (varying role-entry shapes)', () => {
-  it('reads bare id/name strings', () => {
-    expect(roleTokens('rol_1')).toEqual(['rol_1'])
+// api.ts reads window.api at import time, so stub it before importing the module under test.
+const request = vi.fn()
+;(globalThis as unknown as { window: Record<string, unknown> }).window ??= {}
+;(window as unknown as { api: unknown }).api = { request }
+
+const { loadUserRoles, loadRoleMembers } = await import('../src/renderer/src/lib/fleetUsers')
+
+beforeEach(() => request.mockReset())
+
+describe('loadRoleMembers', () => {
+  it('coerces items[] into id/name', async () => {
+    request.mockResolvedValue({ data: { items: [{ user_id: 'u1', username: 'Nova' }] } })
+    expect(await loadRoleMembers('flt', 'r1')).toEqual([{ id: 'u1', name: 'Nova' }])
   })
-  it('reads snake_case role objects', () => {
-    expect(roleTokens({ role_id: 'rol_1', role_name: 'Admin' })).toEqual(['rol_1', 'Admin'])
-  })
-  it('reads plain id/name objects (the shape that used to map to "")', () => {
-    expect(roleTokens({ id: 'rol_1', name: 'Admin' })).toEqual(['rol_1', 'Admin'])
-  })
-  it('ignores null/empty entries', () => {
-    expect(roleTokens(null)).toEqual([])
+  it('tolerates a bare array', async () => {
+    request.mockResolvedValue({ data: [{ user_id: 'u2', username: 'Rex' }] })
+    expect(await loadRoleMembers('flt', 'r1')).toEqual([{ id: 'u2', name: 'Rex' }])
   })
 })
 
-describe('userHasRole (id or name, case-insensitive)', () => {
-  const user: FleetUser = { id: 'u1', name: 'Nova', roles: ['rol_1', 'Admin'] }
-  it('matches by id', () => {
-    expect(userHasRole(user, { id: 'rol_1', name: 'Admin' })).toBe(true)
-  })
-  it('matches by name only, case-insensitively', () => {
-    expect(userHasRole({ ...user, roles: ['admin'] }, { id: 'rol_x', name: 'Admin' })).toBe(true)
-  })
-  it('does not match unrelated roles', () => {
-    expect(userHasRole(user, { id: 'rol_2', name: 'Moderator' })).toBe(false)
+describe('loadUserRoles (cross-reference over role member lists)', () => {
+  it('returns only the roles whose member list contains the user', async () => {
+    request.mockImplementation((args) => {
+      const { endpointId, params } = args ?? {}
+      if (endpointId === 'roles.list')
+        return Promise.resolve({
+          data: { roles: [{ role_id: 'r1', role_name: 'Admin' }, { role_id: 'r2', role_name: 'Mod' }] }
+        })
+      const members = params?.roleId === 'r1' ? [{ user_id: 'u1' }] : [{ user_id: 'u9' }]
+      return Promise.resolve({ data: { items: members } })
+    })
+    expect(await loadUserRoles('flt', 'u1')).toEqual([{ id: 'r1', name: 'Admin' }])
   })
 })

@@ -1,8 +1,8 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-19T07:09:37.271Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-21T02:20:22.339Z._
 
-**31** endpoints registered · **24** verified · **7** unverified.
+**32** endpoints registered · **25** verified · **7** unverified.
 
 > Base URL `https://api.oriondrift.net` · auth header `x-api-key`. See `docs/API-DISCOVERY.md`.
 >
@@ -25,6 +25,7 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-19T07:09:37.2
 | `station.config.set` | POST | `/v2/stations/:stationId/config` | yes | station_config:write | verified |
 | `station.config.delete` | DELETE | `/v2/stations/:stationId/config` | yes | station_config:write | verified |
 | `roles.list` | GET | `/v1/fleets/:fleetId/roles` | yes | role:read | verified |
+| `roles.members` | GET | `/v2/fleets/:fleetId/roles/:roleId/users` | yes | role:read | verified |
 | `roles.create` | POST | `/v1/fleets/:fleetId/roles` | yes | role:write | unverified |
 | `roles.updatePermissions` | PATCH | `/v1/fleets/:fleetId/roles/:roleId/permissions` | yes | role:write | unverified |
 | `roles.delete` | DELETE | `/v1/fleets/:fleetId/roles/:roleId` | yes | role:write | unverified |
@@ -308,6 +309,20 @@ Roles for a fleet (use fleetId "global" for global roles).
   }
   ```
 - **Notes:** Live-verified 2026-07-18 against /v1 (v2/v3 404). Response wrapped in `roles`.
+
+### List users with a role — `roles.members`
+
+All users in a fleet who currently hold a given role.
+
+- **Method / Path:** `GET /v2/fleets/:fleetId/roles/:roleId/users`
+- **Auth required:** yes
+- **Permission scope:** role:read
+- **Status:** verified
+- **Fleet-scoped**
+- **Parameters:**
+  - `fleetId` (path) — required — e.g. `flt_1`
+  - `roleId` (path) — required — e.g. `rol_1`
+- **Notes:** Live-confirmed 2026-07-20: the reliable way to list a role’s members — the v3 user list returns roles:null. Response is the fleet users holding this role.
 
 ### Create role — `roles.create`
 

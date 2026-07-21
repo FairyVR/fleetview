@@ -3,45 +3,67 @@ import { api } from './api'
 export interface FleetUser {
   id: string
   name: string
-  /** Every identifying token for the user's roles (ids AND names) — the list API's role
-   *  entries vary in shape, so we keep all candidates and match generously. */
-  roles: string[]
 }
 
-/**
- * Pull every id/name token out of one role entry. The v3 user list returns role entries
- * as bare id/name strings on some fleets and as objects on others, and object keys are not
- * consistent (`role_id`/`role_name` vs `id`/`name`). Collect them all so membership matching
- * works regardless of shape — extracting only one key silently dropped everyone to `''`.
- */
-export function roleTokens(r: unknown): string[] {
-  if (r == null) return []
-  if (typeof r === 'string' || typeof r === 'number') return [String(r)]
-  const o = r as Record<string, unknown>
-  return [o.role_id, o.id, o.role_name, o.name].filter((v) => v != null).map(String)
+export interface FleetRole {
+  id: string
+  name: string
 }
 
-/** True when `user` carries `role` under any of its ids/names (case-insensitive). */
-export function userHasRole(user: FleetUser, role: { id: string; name: string }): boolean {
-  const want = new Set([role.id, role.name].filter(Boolean).map((s) => s.toLowerCase()))
-  return user.roles.some((r) => want.has(r.toLowerCase()))
-}
-
-/** All users a fleet knows (v3, live-verified), with roles when the API includes them. */
-export async function loadFleetUsers(fleetId: string): Promise<FleetUser[]> {
-  const res = await api.request({
-    endpointId: 'player.listByFleet',
-    params: { fleetId, page_size: 100, include_roles: true }
-  })
-  const arr = (res.data as { items?: unknown[] } | null)?.items
+/** Coerce a users payload (`{ items: [...] }` or a bare array) into FleetUsers. */
+function coerceFleetUsers(data: unknown): FleetUser[] {
+  const arr = Array.isArray(data) ? data : (data as { items?: unknown[] } | null)?.items
   return (Array.isArray(arr) ? arr : [])
     .map((u) => u as Record<string, unknown>)
     .map((u) => ({
-      id: String(u.user_id ?? ''),
-      name: String(u.username ?? u.user_id ?? ''),
-      roles: (Array.isArray(u.roles) ? u.roles : []).flatMap(roleTokens)
+      id: String(u.user_id ?? u.id ?? ''),
+      name: String(u.username ?? u.display_name ?? u.user_id ?? '')
     }))
     .filter((u) => u.id)
+}
+
+/** All users a fleet knows (v3, live-verified). */
+export async function loadFleetUsers(fleetId: string): Promise<FleetUser[]> {
+  const res = await api.request({
+    endpointId: 'player.listByFleet',
+    params: { fleetId, page_size: 100 }
+  })
+  return coerceFleetUsers(res.data)
+}
+
+/** The fleet's roles (`{ roles: [...] }`), id + name only. */
+export async function loadFleetRoles(fleetId: string): Promise<FleetRole[]> {
+  const res = await api.request({ endpointId: 'roles.list', params: { fleetId } })
+  const arr = (res.data as { roles?: unknown[] } | null)?.roles ?? res.data
+  return (Array.isArray(arr) ? arr : [])
+    .map((r) => r as Record<string, unknown>)
+    .map((r) => ({
+      id: String(r.role_id ?? r.id ?? ''),
+      name: String(r.role_name ?? r.name ?? 'Unknown')
+    }))
+    .filter((r) => r.id)
+}
+
+/** Users who currently hold a specific role (v2, live-confirmed 2026-07-20). */
+export async function loadRoleMembers(fleetId: string, roleId: string): Promise<FleetUser[]> {
+  const res = await api.request({ endpointId: 'roles.members', params: { fleetId, roleId } })
+  return coerceFleetUsers(res.data)
+}
+
+/**
+ * Roles a single user holds, by cross-referencing every role's member list — the only
+ * reliable source, since the user endpoints return roles:null.
+ * ponytail: N+1 (one members call per role); replace with a per-user roles endpoint if one appears.
+ */
+export async function loadUserRoles(fleetId: string, userId: string): Promise<FleetRole[]> {
+  const roles = await loadFleetRoles(fleetId)
+  const held = await Promise.all(
+    roles.map(async (role) => {
+      const members = await loadRoleMembers(fleetId, role.id)
+      return members.some((m) => m.id === userId) ? role : null
+    })
+  )
+  return held.filter((r): r is FleetRole => r !== null)
 }
 
 /**

@@ -8,7 +8,7 @@ import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { useAppStore } from '../../state/useAppStore'
-import { loadFleetUsers, userHasRole, type FleetUser } from '../../lib/fleetUsers'
+import { loadFleetUsers, loadRoleMembers, type FleetUser } from '../../lib/fleetUsers'
 
 interface Role {
   id: string
@@ -59,8 +59,7 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
     setMembers(null)
     setSelected(new Set())
     setRemoveError(null)
-    const users = await loadFleetUsers(fleetId)
-    setMembers(users.filter((u) => userHasRole(u, role)))
+    setMembers(await loadRoleMembers(fleetId, role.id))
   }
 
   function toggleSelected(id: string) {

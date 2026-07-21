@@ -8,6 +8,7 @@ import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { asBans, type Ban } from '../../lib/bans'
+import { loadUserRoles, type FleetRole } from '../../lib/fleetUsers'
 import { ago } from '../../lib/format'
 import { isOnline } from '../../lib/presence'
 import { useAppStore } from '../../state/useAppStore'
@@ -60,6 +61,7 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
   const [banHistory, setBanHistory] = useState<Ban[]>([])
   const [loadingBans, setLoadingBans] = useState(false)
   const [profile, setProfile] = useState<unknown>(null)
+  const [playerRoles, setPlayerRoles] = useState<FleetRole[] | null>(null)
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault() // filtering is client-side over the loaded list
@@ -68,8 +70,11 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
   async function openDetail(player: Player) {
     setSelectedPlayer(player)
     setProfile(null)
+    setPlayerRoles(null)
     setDetailOpen(true)
     setLoadingBans(true)
+    // Roles aren't on the player payload (API returns roles:null), so cross-reference role members.
+    void loadUserRoles(fleetId, player.id).then(setPlayerRoles)
     // Global profile (user.get is the confirmed v2 endpoint; fleet player lists may 404).
     void api
       .request({ endpointId: 'user.get', params: { userId: player.id } })
@@ -188,6 +193,25 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
         {selectedPlayer && (
           <div className="space-y-4">
             <JsonBlock value={profile ?? selectedPlayer} />
+
+            <div className="space-y-3">
+              <h3 className="font-medium flex items-center gap-2">
+                <Shield size={14} /> Roles
+              </h3>
+              {playerRoles === null ? (
+                <p className="text-[12px] text-[var(--text-dim)]">Loading…</p>
+              ) : playerRoles.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {playerRoles.map((role) => (
+                    <Badge key={role.id} tone="accent">
+                      {role.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12px] text-[var(--text-dim)]">No roles</p>
+              )}
+            </div>
 
             <div className="space-y-3">
               <h3 className="font-medium flex items-center gap-2">

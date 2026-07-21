@@ -268,6 +268,23 @@ export const endpoints: EndpointDef[] = [
     notes: 'Live-verified 2026-07-18 against /v1 (v2/v3 404). Response wrapped in `roles`.'
   },
   {
+    id: 'roles.members',
+    name: 'List users with a role',
+    description: 'All users in a fleet who currently hold a given role.',
+    category: 'roles',
+    method: 'GET',
+    path: '/v2/fleets/:fleetId/roles/:roleId/users',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'roleId', in: 'path', required: true, example: 'rol_1' }
+    ],
+    requiresAuth: true,
+    permission: 'role:read',
+    fleetScoped: true,
+    status: 'verified',
+    notes: 'Live-confirmed 2026-07-20: the reliable way to list a role’s members — the v3 user list returns roles:null. Response is the fleet users holding this role.'
+  },
+  {
     id: 'roles.create',
     name: 'Create role',
     description: 'Create a role in a fleet.',
