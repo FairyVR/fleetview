@@ -3,7 +3,28 @@ import { api } from './api'
 export interface FleetUser {
   id: string
   name: string
+  /** Every identifying token for the user's roles (ids AND names) — the list API's role
+   *  entries vary in shape, so we keep all candidates and match generously. */
   roles: string[]
+}
+
+/**
+ * Pull every id/name token out of one role entry. The v3 user list returns role entries
+ * as bare id/name strings on some fleets and as objects on others, and object keys are not
+ * consistent (`role_id`/`role_name` vs `id`/`name`). Collect them all so membership matching
+ * works regardless of shape — extracting only one key silently dropped everyone to `''`.
+ */
+export function roleTokens(r: unknown): string[] {
+  if (r == null) return []
+  if (typeof r === 'string' || typeof r === 'number') return [String(r)]
+  const o = r as Record<string, unknown>
+  return [o.role_id, o.id, o.role_name, o.name].filter((v) => v != null).map(String)
+}
+
+/** True when `user` carries `role` under any of its ids/names (case-insensitive). */
+export function userHasRole(user: FleetUser, role: { id: string; name: string }): boolean {
+  const want = new Set([role.id, role.name].filter(Boolean).map((s) => s.toLowerCase()))
+  return user.roles.some((r) => want.has(r.toLowerCase()))
 }
 
 /** All users a fleet knows (v3, live-verified), with roles when the API includes them. */
@@ -18,11 +39,7 @@ export async function loadFleetUsers(fleetId: string): Promise<FleetUser[]> {
     .map((u) => ({
       id: String(u.user_id ?? ''),
       name: String(u.username ?? u.user_id ?? ''),
-      roles: (Array.isArray(u.roles) ? u.roles : []).map((r) =>
-        typeof r === 'string'
-          ? r
-          : String((r as Record<string, unknown>)?.role_id ?? (r as Record<string, unknown>)?.role_name ?? '')
-      )
+      roles: (Array.isArray(u.roles) ? u.roles : []).flatMap(roleTokens)
     }))
     .filter((u) => u.id)
 }
