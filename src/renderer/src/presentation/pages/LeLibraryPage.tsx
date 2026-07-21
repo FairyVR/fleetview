@@ -100,6 +100,12 @@ export default function LeLibraryPage() {
     downloadJson(`fleetview-le-library-${Date.now()}.json`, bundle)
   }
 
+  function exportOne(c: LeConfig) {
+    // A single-config bundle imports through the same path as a full export.
+    const slug = c.name.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'config'
+    downloadJson(`fleetview-le-${slug}.json`, { version: 1, exportedAt: Date.now(), leConfigs: [c], presets: [] })
+  }
+
   function importFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -136,7 +142,7 @@ export default function LeLibraryPage() {
           <>
             <input ref={fileInput} type="file" accept=".json,.txt" hidden onChange={importFile} />
             <Button onClick={() => fileInput.current?.click()}><Upload size={14} /> Import</Button>
-            <Button onClick={() => void exportAll()}><Download size={14} /> Export</Button>
+            <Button onClick={() => void exportAll()}><Download size={14} /> Export all</Button>
             <Button variant="primary" onClick={newConfig}><Plus size={14} /> New</Button>
           </>
         }
@@ -233,6 +239,7 @@ export default function LeLibraryPage() {
                     <Star size={14} className={selected.favorite ? 'text-[var(--warn)] fill-[var(--warn)]' : ''} /> Favorite
                   </Button>
                   <Button onClick={() => void duplicate(selected.id)}><Copy size={14} /> Duplicate</Button>
+                  <Button onClick={() => exportOne(selected)}><Download size={14} /> Export</Button>
                   <Button onClick={() => setShowHistory((v) => !v)}>
                     <History size={14} /> Versions ({selected.history.length})
                   </Button>
