@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import { RefreshCw, Download, Upload, RotateCcw, Save, Gamepad2, SlidersHorizontal } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
@@ -34,6 +34,18 @@ const GROUP_ORDER = Object.keys(GAMEMODE_GROUPS)
 function groupRank(group: string | null): number {
   const i = group ? GROUP_ORDER.indexOf(group) : -1
   return i === -1 ? GROUP_ORDER.length : i
+}
+
+/** Label + value row — input hugs the label instead of stretching to the card edge. */
+function Row({ label, breakAll, children }: { label: string; breakAll?: boolean; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className={`mono text-[11px] text-[var(--text-dim)] min-w-[180px] ${breakAll ? 'break-all' : ''}`}>
+        {label}
+      </span>
+      <div className="flex-1 max-w-[220px]">{children}</div>
+    </div>
+  )
 }
 
 /** Segmented true/false toggle — the chosen side is highlighted; neither when unset. */
@@ -298,14 +310,13 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                 <span className="font-medium text-[13px]">Config editor</span>
                 <Badge>station settings</Badge>
               </div>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                 {configRows.map((key) => {
                   const pinned = PINNED_KEYS.find((p) => p.key === key)
                   const value = edited[key]
                   const unset = value === undefined
                   return (
-                    <div key={key} className="grid grid-cols-[minmax(180px,1fr)_minmax(140px,220px)] gap-3 items-center">
-                      <span className="mono text-[11px] text-[var(--text-dim)] break-all">{key}</span>
+                    <Row key={key} label={key} breakAll>
                       {unset && pinned?.type === 'boolean' ? (
                         <BoolToggle onChange={(v) => setValue(key, v)} />
                       ) : unset && pinned?.type === 'number' ? (
@@ -319,7 +330,7 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                       ) : (
                         <ValueInput value={value} onChange={(v) => setValue(key, v)} />
                       )}
-                    </div>
+                    </Row>
                   )
                 })}
               </div>
@@ -382,20 +393,17 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                       Select one or more arenas (or a group) to edit their overrides together.
                     </p>
                   ) : (
-                    <div className="grid gap-2">
+                    <div>
                       <div className="text-[12px] text-[var(--text-dim)] mb-1">
                         Editing <b>{selected.length}</b> arena{selected.length === 1 ? '' : 's'} — changes apply to all
                         selected.
                       </div>
-                      {selectedFields.map((field) => {
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                        {selectedFields.map((field) => {
                         const state = fieldState(field)
                         const preset = DEFAULT_GM_FIELDS.find((d) => d.field === field)
                         return (
-                          <div
-                            key={field}
-                            className="grid grid-cols-[minmax(180px,1fr)_minmax(140px,220px)] gap-3 items-center"
-                          >
-                            <span className="mono text-[11px] text-[var(--text-dim)]">{field}</span>
+                          <Row key={field} label={field}>
                             {state.kind === 'value' ? (
                               <ValueInput value={state.value} onChange={(v) => setFieldForSelection(field, v)} />
                             ) : state.kind === 'mixed' ? (
@@ -430,9 +438,10 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                                 }
                               />
                             )}
-                          </div>
+                          </Row>
                         )
-                      })}
+                        })}
+                      </div>
                       <div className="flex gap-2 mt-2">
                         <input
                           id="new-gm-field"
