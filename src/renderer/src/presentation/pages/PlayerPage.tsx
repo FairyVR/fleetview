@@ -213,6 +213,26 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
               )}
             </div>
 
+            {playerRoles && playerRoles.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Lock size={14} /> Effective permissions
+                </h3>
+                {(() => {
+                  const perms = [...new Set(playerRoles.flatMap((r) => r.permissions))].sort()
+                  return perms.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {perms.map((perm) => (
+                        <Badge key={perm}>{perm}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[12px] text-[var(--text-dim)]">No permissions</p>
+                  )
+                })()}
+              </div>
+            )}
+
             <div className="space-y-3">
               <h3 className="font-medium flex items-center gap-2">
                 <Shield size={14} /> Actions

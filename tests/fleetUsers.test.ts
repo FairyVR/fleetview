@@ -31,11 +31,18 @@ describe('loadUserRoles (cross-reference over role member lists)', () => {
       const { endpointId, params } = args ?? {}
       if (endpointId === 'roles.list')
         return Promise.resolve({
-          data: { roles: [{ role_id: 'r1', role_name: 'Admin' }, { role_id: 'r2', role_name: 'Mod' }] }
+          data: {
+            roles: [
+              { role_id: 'r1', role_name: 'Admin', permissions: ['user_ban:write'] },
+              { role_id: 'r2', role_name: 'Mod' }
+            ]
+          }
         })
       const members = params?.roleId === 'r1' ? [{ user_id: 'u1' }] : [{ user_id: 'u9' }]
       return Promise.resolve({ data: { items: members } })
     })
-    expect(await loadUserRoles('flt', 'u1')).toEqual([{ id: 'r1', name: 'Admin' }])
+    expect(await loadUserRoles('flt', 'u1')).toEqual([
+      { id: 'r1', name: 'Admin', permissions: ['user_ban:write'] }
+    ])
   })
 })

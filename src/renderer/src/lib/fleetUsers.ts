@@ -8,6 +8,7 @@ export interface FleetUser {
 export interface FleetRole {
   id: string
   name: string
+  permissions: string[]
 }
 
 /**
@@ -44,7 +45,8 @@ export async function loadFleetRoles(fleetId: string): Promise<FleetRole[]> {
     .map((r) => r as Record<string, unknown>)
     .map((r) => ({
       id: String(r.role_id ?? r.id ?? ''),
-      name: String(r.role_name ?? r.name ?? 'Unknown')
+      name: String(r.role_name ?? r.name ?? 'Unknown'),
+      permissions: Array.isArray(r.permissions) ? (r.permissions as unknown[]).map(String) : []
     }))
     .filter((r) => r.id)
 }
