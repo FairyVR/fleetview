@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Shield, RefreshCw, Send, Users } from 'lucide-react'
+import { Shield, RefreshCw, Send, Users, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
 import { PageHeader, Card, Button, Badge, Field, EmptyState } from '../components/ui'
@@ -48,14 +48,48 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
   const [assignResults, setAssignResults] = useState<Array<{ name: string; ok: boolean; msg?: string }> | null>(null)
   const [memberRole, setMemberRole] = useState<Role | null>(null)
   const [members, setMembers] = useState<FleetUser[] | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [removing, setRemoving] = useState(false)
+  const [removeError, setRemoveError] = useState<string | null>(null)
 
   const roles = asRoles(data)
 
   async function openMembers(role: Role) {
     setMemberRole(role)
     setMembers(null)
+    setSelected(new Set())
+    setRemoveError(null)
     const users = await loadFleetUsers(fleetId)
     setMembers(users.filter((u) => u.roles.includes(role.id) || u.roles.includes(role.name)))
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function removeRoleFrom(userIds: string[]) {
+    if (!memberRole || !userIds.length) return
+    setRemoving(true)
+    setRemoveError(null)
+    const removed: string[] = []
+    const failed: string[] = []
+    for (const userId of userIds) {
+      const res = await api.request({
+        endpointId: 'roles.unassign',
+        params: { fleetId, userId, roleId: memberRole.id }
+      })
+      if (res.ok) removed.push(userId)
+      else failed.push(members?.find((m) => m.id === userId)?.name ?? userId)
+    }
+    setMembers((prev) => prev?.filter((m) => !removed.includes(m.id)) ?? null)
+    setSelected(new Set())
+    if (failed.length) setRemoveError(`Failed to remove role from: ${failed.join(', ')}`)
+    setRemoving(false)
   }
 
   async function handleAssign() {
@@ -194,14 +228,58 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
             hint="No player in this fleet's user list currently reports this role."
           />
         ) : (
-          <div className="grid gap-1.5">
-            {members.map((m) => (
-              <div key={m.id} className="flex items-center gap-2 text-[13px]">
-                <Users size={13} className="text-[var(--accent)]" />
-                <span>{m.name}</span>
-                {showIds && <span className="mono text-[11px] text-[var(--text-faint)]">{m.id}</span>}
+          <div className="space-y-3">
+            <PermissionGate scope="role:write">
+              <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border-soft)]">
+                <label className="flex items-center gap-2 text-[12px] text-[var(--text-dim)] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selected.size === members.length && members.length > 0}
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? new Set(members.map((m) => m.id)) : new Set())
+                    }
+                  />
+                  Select all
+                </label>
+                <Button
+                  variant="danger"
+                  disabled={selected.size === 0 || removing}
+                  onClick={() => void removeRoleFrom([...selected])}
+                >
+                  <Trash2 size={13} /> {removing ? 'Removing…' : `Remove role (${selected.size})`}
+                </Button>
               </div>
-            ))}
+            </PermissionGate>
+
+            {removeError && <p className="text-[12px] text-[var(--bad)]">{removeError}</p>}
+
+            <div className="grid gap-1.5">
+              {members.map((m) => (
+                <div key={m.id} className="flex items-center gap-2 text-[13px]">
+                  <PermissionGate scope="role:write" hideWhenDenied>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(m.id)}
+                      onChange={() => toggleSelected(m.id)}
+                    />
+                  </PermissionGate>
+                  <Users size={13} className="text-[var(--accent)]" />
+                  <span>{m.name}</span>
+                  {showIds && <span className="mono text-[11px] text-[var(--text-faint)]">{m.id}</span>}
+                  <PermissionGate scope="role:write" hideWhenDenied>
+                    <Button
+                      variant="ghost"
+                      className="ml-auto"
+                      disabled={removing}
+                      onClick={() => void removeRoleFrom([m.id])}
+                      aria-label={`Remove role from ${m.name}`}
+                    >
+                      <Trash2 size={13} />
+                    </Button>
+                  </PermissionGate>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </Modal>
