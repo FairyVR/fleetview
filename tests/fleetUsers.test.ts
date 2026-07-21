@@ -11,9 +11,13 @@ const { loadUserRoles, loadRoleMembers } = await import('../src/renderer/src/lib
 beforeEach(() => request.mockReset())
 
 describe('loadRoleMembers', () => {
-  it('coerces items[] into id/name', async () => {
-    request.mockResolvedValue({ data: { items: [{ user_id: 'u1', username: 'Nova' }] } })
+  it('coerces the live { users: [...] } wrapper into id/name', async () => {
+    request.mockResolvedValue({ data: { users: [{ user_id: 'u1', username: 'Nova' }] } })
     expect(await loadRoleMembers('flt', 'r1')).toEqual([{ id: 'u1', name: 'Nova' }])
+  })
+  it('also accepts an items[] wrapper', async () => {
+    request.mockResolvedValue({ data: { items: [{ user_id: 'u3', username: 'Ivy' }] } })
+    expect(await loadRoleMembers('flt', 'r1')).toEqual([{ id: 'u3', name: 'Ivy' }])
   })
   it('tolerates a bare array', async () => {
     request.mockResolvedValue({ data: [{ user_id: 'u2', username: 'Rex' }] })

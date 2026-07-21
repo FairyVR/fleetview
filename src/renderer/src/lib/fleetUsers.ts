@@ -10,9 +10,14 @@ export interface FleetRole {
   name: string
 }
 
-/** Coerce a users payload (`{ items: [...] }` or a bare array) into FleetUsers. */
+/**
+ * Coerce a users payload into FleetUsers. The list endpoint wraps in `items`, the
+ * role-members endpoint (`/v2/.../roles/:id/users`) wraps in `users` — accept both, plus a
+ * bare array.
+ */
 function coerceFleetUsers(data: unknown): FleetUser[] {
-  const arr = Array.isArray(data) ? data : (data as { items?: unknown[] } | null)?.items
+  const d = data as { items?: unknown[]; users?: unknown[] } | null
+  const arr = Array.isArray(data) ? data : d?.items ?? d?.users
   return (Array.isArray(arr) ? arr : [])
     .map((u) => u as Record<string, unknown>)
     .map((u) => ({
