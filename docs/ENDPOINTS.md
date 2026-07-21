@@ -1,8 +1,8 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-21T02:20:22.339Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-21T02:40:14.687Z._
 
-**32** endpoints registered · **25** verified · **7** unverified.
+**32** endpoints registered · **26** verified · **6** unverified.
 
 > Base URL `https://api.oriondrift.net` · auth header `x-api-key`. See `docs/API-DISCOVERY.md`.
 >
@@ -30,7 +30,7 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-21T02:20:22.3
 | `roles.updatePermissions` | PATCH | `/v1/fleets/:fleetId/roles/:roleId/permissions` | yes | role:write | unverified |
 | `roles.delete` | DELETE | `/v1/fleets/:fleetId/roles/:roleId` | yes | role:write | unverified |
 | `roles.assign` | POST | `/v1/fleets/:fleetId/users/:userId/roles/:roleId` | yes | role:write | unverified |
-| `roles.unassign` | DELETE | `/v1/fleets/:fleetId/users/:userId/role/:roleId` | yes | role:write | unverified |
+| `roles.unassign` | DELETE | `/v1/fleets/:fleetId/users/:userId/role/:roleId` | yes | role:write | verified |
 | `user.get` | GET | `/v2/users/:userId` | yes | user_data:read | verified |
 | `player.search` | GET | `/v1/user_search` | yes | user_data:read | verified |
 | `player.listByFleet` | GET | `/v3/fleets/:fleetId/users` | yes | user_data:read | verified |
@@ -399,7 +399,7 @@ Grant a role to a user in a fleet.
   - `fleetId` (path) — required — e.g. `flt_1`
   - `userId` (path) — required — e.g. `usr_1`
   - `roleId` (path) — required — e.g. `rol_1`
-- **Notes:** Roles resource 404s on v2; v1 path unconfirmed against the live API.
+- **Notes:** Live-probed 2026-07-20: this v1 path is the real route (POST returns 500 on a non-existent user, not 404). The v2 roles/:roleId/users variant 404s.
 
 ### Remove role from user — `roles.unassign`
 
@@ -408,13 +408,13 @@ Revoke a role from a user in a fleet.
 - **Method / Path:** `DELETE /v1/fleets/:fleetId/users/:userId/role/:roleId`
 - **Auth required:** yes
 - **Permission scope:** role:write
-- **Status:** unverified
+- **Status:** verified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
   - `userId` (path) — required — e.g. `usr_1`
   - `roleId` (path) — required — e.g. `rol_1`
-- **Notes:** Roles resource 404s on v2; v1 path unconfirmed against the live API.
+- **Notes:** Live-verified 2026-07-20: DELETE returns 200 {"success":true}. Note the singular `/role/` segment (assign uses plural `/roles/`).
 
 ## player
 

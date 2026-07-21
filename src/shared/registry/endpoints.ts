@@ -350,7 +350,7 @@ export const endpoints: EndpointDef[] = [
     permission: 'role:write',
     fleetScoped: true,
     status: 'unverified',
-    notes: 'Roles resource 404s on v2; v1 path unconfirmed against the live API.'
+    notes: 'Live-probed 2026-07-20: this v1 path is the real route (POST returns 500 on a non-existent user, not 404). The v2 roles/:roleId/users variant 404s.'
   },
   {
     id: 'roles.unassign',
@@ -367,8 +367,8 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'role:write',
     fleetScoped: true,
-    status: 'unverified',
-    notes: 'Roles resource 404s on v2; v1 path unconfirmed against the live API.'
+    status: 'verified',
+    notes: 'Live-verified 2026-07-20: DELETE returns 200 {"success":true}. Note the singular `/role/` segment (assign uses plural `/roles/`).'
   },
 
   // ── Players / users ────────────────────────────────────────────────
