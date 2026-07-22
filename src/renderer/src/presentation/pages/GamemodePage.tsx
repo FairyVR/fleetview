@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, type ReactNode } from 'react'
-import { RefreshCw, Download, Upload, RotateCcw, Save, Gamepad2, SlidersHorizontal } from 'lucide-react'
+import { RefreshCw, Download, Upload, RotateCcw, Save, Gamepad2, SlidersHorizontal, Shield, Users } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
+import { useSelectionStore } from '../../state/useSelectionStore'
+import { loadFleetUsers, loadFleetRoles, loadRoleMembers, type FleetUser, type FleetRole } from '../../lib/fleetUsers'
 import { PageHeader, Card, Button, Badge } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { StationScoped } from '../components/StationScoped'
@@ -98,6 +100,108 @@ function ValueInput({
   )
 }
 
+/** Split/join the whitelist string as a de-duped (case-insensitive) list of usernames. */
+function parseWhitelist(value: string): string[] {
+  return value.split(',').map((n) => n.trim()).filter(Boolean)
+}
+
+/**
+ * Whitelist editor: a raw comma-separated username list plus a search that adds a single
+ * user, or expands a whole role to its members' usernames (snapshot at edit time).
+ */
+function WhitelistPicker({
+  value,
+  onChange,
+  users,
+  roles,
+  fleetId
+}: {
+  value: string
+  onChange: (v: string) => void
+  users: FleetUser[]
+  roles: FleetRole[]
+  fleetId: string
+}) {
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState(false)
+  const names = parseWhitelist(value)
+
+  const addNames = (toAdd: string[]) => {
+    const merged = [...names]
+    for (const n of toAdd)
+      if (n && !merged.some((m) => m.toLowerCase() === n.toLowerCase())) merged.push(n)
+    onChange(merged.join(', '))
+  }
+
+  const q = query.trim().toLowerCase()
+  const roleHits = q ? roles.filter((r) => r.name.toLowerCase().includes(q)).slice(0, 4) : []
+  const userHits = q ? users.filter((u) => u.name.toLowerCase().includes(q)).slice(0, 6) : []
+
+  async function addRole(role: FleetRole) {
+    setBusy(true)
+    try {
+      const members = await loadRoleMembers(fleetId, role.id)
+      addNames(members.map((m) => m.name))
+    } finally {
+      setBusy(false)
+      setQuery('')
+    }
+  }
+
+  return (
+    <div className="grid gap-1.5">
+      <textarea
+        className="input text-[12px]"
+        rows={2}
+        placeholder="Allowlisted users (comma-separated)"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <div className="relative">
+        <input
+          className="input text-[12px] w-full"
+          placeholder="Search users or roles…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {q && (roleHits.length > 0 || userHits.length > 0) && (
+          <div className="absolute z-10 mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-elev-2)] shadow-lg max-h-56 overflow-auto">
+            {roleHits.map((r) => (
+              <button
+                key={`r-${r.id}`}
+                type="button"
+                disabled={busy}
+                onClick={() => void addRole(r)}
+                className="flex items-center gap-2 w-full text-left px-2 py-1.5 text-[12px] hover:bg-[var(--bg-elev-1)] disabled:opacity-50"
+              >
+                <Shield size={12} className="text-[var(--accent)]" />
+                <span className="flex-1">{r.name}</span>
+                <Badge tone="accent">role</Badge>
+              </button>
+            ))}
+            {userHits.map((u) => (
+              <button
+                key={`u-${u.id}`}
+                type="button"
+                onClick={() => {
+                  addNames([u.name])
+                  setQuery('')
+                }}
+                className="flex items-center gap-2 w-full text-left px-2 py-1.5 text-[12px] hover:bg-[var(--bg-elev-1)]"
+              >
+                <Users size={12} className="text-[var(--text-dim)]" />
+                <span className="flex-1">{u.name}</span>
+                {names.some((n) => n.toLowerCase() === u.name.toLowerCase()) && <Badge tone="good">added</Badge>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {busy && <span className="text-[11px] text-[var(--text-dim)]">Adding role members…</span>}
+    </div>
+  )
+}
+
 interface GmEntry {
   /** Original-cased id as it appears in config keys (writes must preserve it). */
   id: string
@@ -117,6 +221,16 @@ function ConfigEditor({ stationId }: { stationId: string }) {
   const [selectedGms, setSelectedGms] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [lastSave, setLastSave] = useState('')
+
+  // Fleet users + roles power the whitelist picker; loaded once per fleet.
+  const fleetId = useSelectionStore((s) => s.fleetId)
+  const [wlUsers, setWlUsers] = useState<FleetUser[]>([])
+  const [wlRoles, setWlRoles] = useState<FleetRole[]>([])
+  useEffect(() => {
+    if (!fleetId) return
+    void loadFleetUsers(fleetId).then(setWlUsers).catch(() => {})
+    void loadFleetRoles(fleetId).then(setWlRoles).catch(() => {})
+  }, [fleetId])
 
   useEffect(() => {
     if (response?.data) {
@@ -194,6 +308,11 @@ function ConfigEditor({ stationId }: { stationId: string }) {
         const gm = gamemodes.get(g)
         if (!gm) continue
         next[gm.fields[field] ?? gamemodeKey(gm.id, field)] = value
+        // A team whitelist only takes effect with its toggle on — flip it when a list is entered.
+        const toggle =
+          field === 'team0whitelist' ? 'buseteam0whitelist' : field === 'team1whitelist' ? 'buseteam1whitelist' : null
+        if (toggle && typeof value === 'string' && value.trim() !== '')
+          next[gm.fields[toggle] ?? gamemodeKey(gm.id, toggle)] = true
       }
       return next
     })
@@ -410,6 +529,28 @@ function ConfigEditor({ stationId }: { stationId: string }) {
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                         {selectedFields.map((field) => {
                         const state = fieldState(field)
+                        if (field === 'team0whitelist' || field === 'team1whitelist') {
+                          const current =
+                            state.kind === 'value' && typeof state.value === 'string' ? state.value : ''
+                          return (
+                            <div key={field} className="md:col-span-2 xl:col-span-3 grid gap-1.5">
+                              <span className="mono text-[11px] text-[var(--text-dim)]">{field}</span>
+                              {fleetId ? (
+                                <WhitelistPicker
+                                  value={current}
+                                  onChange={(v) => setFieldForSelection(field, v)}
+                                  users={wlUsers}
+                                  roles={wlRoles}
+                                  fleetId={fleetId}
+                                />
+                              ) : (
+                                <span className="text-[11px] text-[var(--text-dim)]">
+                                  Select a fleet to edit whitelists.
+                                </span>
+                              )}
+                            </div>
+                          )
+                        }
                         const preset = DEFAULT_GM_FIELDS.find((d) => d.field === field)
                         return (
                           <Row key={field} label={field}>
