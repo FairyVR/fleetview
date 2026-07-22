@@ -7,6 +7,7 @@ import { Spinner } from './presentation/components/ui'
 
 import DashboardPage from './presentation/pages/DashboardPage'
 import FleetPage from './presentation/pages/FleetPage'
+import LiveOpsPage from './presentation/pages/LiveOpsPage'
 import StationPage from './presentation/pages/StationPage'
 import GamemodePage from './presentation/pages/GamemodePage'
 import BoardManagerPage from './presentation/pages/BoardManagerPage'
@@ -46,6 +47,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/fleets" element={<FleetPage />} />
+        <Route path="/live" element={<LiveOpsPage />} />
         <Route path="/stations" element={<StationPage />} />
         <Route path="/gamemodes" element={<GamemodePage />} />
         <Route path="/board" element={<BoardManagerPage />} />

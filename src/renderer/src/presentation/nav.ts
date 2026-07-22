@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Rocket,
+  Radio,
   Server,
   Gamepad2,
   Image,
@@ -36,6 +37,7 @@ export const NAV: NavGroup[] = [
     title: 'Fleet Ops',
     items: [
       { to: '/fleets', label: 'Fleet Explorer', icon: Rocket },
+      { to: '/live', label: 'Live Ops', icon: Radio },
       { to: '/stations', label: 'Station Manager', icon: Server },
       { to: '/gamemodes', label: 'Gamemode Manager', icon: Gamepad2 },
       { to: '/board', label: 'Board Manager', icon: Image }
