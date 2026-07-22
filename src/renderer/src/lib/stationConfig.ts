@@ -3,6 +3,8 @@
  * Grounded in live config from station d27f9911 (Strike fleet), 2026-07-18.
  */
 
+import { normalizeGamemodeId } from './gamemodes'
+
 export type KeyClass =
   | { kind: 'hidden' }
   | { kind: 'gamemode'; gm: string; field: string }
@@ -95,5 +97,62 @@ export const DEFAULT_GM_FIELDS: Array<{ field: string; type: 'boolean' | 'number
   { field: 'ballowplayergrabbingotherteam', type: 'boolean' },
   { field: 'ballowplayertackling', type: 'boolean' },
   { field: 'busemaxteamsize', type: 'boolean' },
-  { field: 'maxteamsize', type: 'number' }
+  { field: 'maxteamsize', type: 'number' },
+  { field: 'team0imageurl', type: 'string' },
+  { field: 'team1imageurl', type: 'string' },
+  { field: 'regrabconfig.regrabspeedkey1', type: 'number' },
+  { field: 'regrabconfig.regrabspeedkey2', type: 'number' },
+  { field: 'regrabconfig.regrabspeedkey3', type: 'number' },
+  { field: 'regrabconfig.regrabspeedkey4', type: 'number' },
+  { field: 'regrabconfig.regrabspeedvalue1', type: 'number' },
+  { field: 'regrabconfig.regrabspeedvalue2', type: 'number' },
+  { field: 'regrabconfig.regrabspeedvalue3', type: 'number' },
+  { field: 'regrabconfig.regrabspeedvalue4', type: 'number' }
 ]
+
+/**
+ * Values an arena runs with when it has no override for a field, from the fleet operator.
+ * Shared across all arenas except team size, which differs by arena family. String fields
+ * (team names, whitelists, image URLs) have no meaningful default and are omitted.
+ */
+const GM_DEFAULTS_BASE: Record<string, unknown> = {
+  bkicklosingteam: false,
+  buseclosedteamvoip: false,
+  matchlengthseconds: 300,
+  mercyscoredifference: 6,
+  buseteam0whitelist: false,
+  buseteam1whitelist: false,
+  busebestof: false,
+  roundspermatch: 1,
+  timebetweenrounds: 45,
+  bshuffleteamsaftermatch: false,
+  ballowpracticemode: true,
+  ballowrestarts: false,
+  buserollbacknetcode: true,
+  ballowplayergrabbingsameteam: true,
+  ballowplayergrabbingotherteam: true,
+  ballowplayertackling: true,
+  'regrabconfig.regrabspeedkey1': 4,
+  'regrabconfig.regrabspeedkey2': 10.5,
+  'regrabconfig.regrabspeedkey3': 13,
+  'regrabconfig.regrabspeedkey4': 13.010000228881836,
+  'regrabconfig.regrabspeedvalue1': 4,
+  'regrabconfig.regrabspeedvalue2': 2,
+  'regrabconfig.regrabspeedvalue3': 1,
+  'regrabconfig.regrabspeedvalue4': 0
+}
+
+/** Team size an arena defaults to: tkb arenas play 3v3, driftball 4v4 arenas play 4v4. */
+function defaultTeamSize(gmId: string): number | undefined {
+  const n = normalizeGamemodeId(gmId)
+  if (n.startsWith('tkb')) return 3
+  if (/^driftball_(east|west)_0[12]$/.test(n)) return 4
+  return undefined
+}
+
+/** Default value for a gamemode override field on a given arena, or undefined when unknown. */
+export function gamemodeFieldDefault(gmId: string, field: string): unknown {
+  if (field === 'ticketmanagersettings.maxteamsizes.0' || field === 'ticketmanagersettings.maxteamsizes.1')
+    return defaultTeamSize(gmId)
+  return GM_DEFAULTS_BASE[field]
+}

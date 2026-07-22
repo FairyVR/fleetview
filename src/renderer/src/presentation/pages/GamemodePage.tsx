@@ -13,7 +13,8 @@ import {
   gamemodeKey,
   configDiff,
   CONFIG_WRITE_PARAMS,
-  DEFAULT_GM_FIELDS
+  DEFAULT_GM_FIELDS,
+  gamemodeFieldDefault
 } from '../../lib/stationConfig'
 import { GAMEMODE_GROUPS, gamemodeDisplayName, gamemodeGroup, normalizeGamemodeId } from '../../lib/gamemodes'
 
@@ -170,7 +171,15 @@ function ConfigEditor({ stationId }: { stationId: string }) {
       const key = gamemodes.get(g)?.fields[field]
       return key ? edited[key] : undefined
     })
-    if (values.every((v) => v === undefined)) return { kind: 'unset' }
+    if (values.every((v) => v === undefined)) {
+      // No override on any selected arena — show the arena's known default instead of blank,
+      // but only when every arena shares the same default (team sizes differ by family).
+      const defs = selected.map((g) => gamemodeFieldDefault(gamemodes.get(g)?.id ?? g, field))
+      const def = defs[0]
+      if (def !== undefined && defs.every((d) => JSON.stringify(d) === JSON.stringify(def)))
+        return { kind: 'value', value: def }
+      return { kind: 'unset' }
+    }
     const first = values[0]
     return values.every((v) => JSON.stringify(v) === JSON.stringify(first))
       ? { kind: 'value', value: first }

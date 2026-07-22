@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { classifyKey, coerceValue, gamemodeKey, configDiff } from '../src/renderer/src/lib/stationConfig'
+import {
+  classifyKey,
+  coerceValue,
+  gamemodeKey,
+  configDiff,
+  gamemodeFieldDefault
+} from '../src/renderer/src/lib/stationConfig'
 import { gamemodeDisplayName, gamemodeGroup } from '../src/renderer/src/lib/gamemodes'
 import { boardName } from '../src/renderer/src/lib/boards'
 
@@ -73,6 +79,21 @@ describe('board naming', () => {
     expect(boardName(0).name).toBe('Landing pad triboard left: sides')
     expect(boardName(9).name).toBe('Club large promo board')
     expect(boardName(12).name).toBe('Board 12')
+  })
+})
+
+describe('gamemodeFieldDefault', () => {
+  it('shares base defaults across arenas but sizes teams by family', () => {
+    expect(gamemodeFieldDefault('tkb_prime', 'matchlengthseconds')).toBe(300)
+    expect(gamemodeFieldDefault('tkb_prime', 'ballowpracticemode')).toBe(true)
+    expect(gamemodeFieldDefault('tkb_prime', 'ticketmanagersettings.maxteamsizes.0')).toBe(3)
+    expect(gamemodeFieldDefault('driftball east 01', 'ticketmanagersettings.maxteamsizes.1')).toBe(4)
+  })
+
+  it('has no default for free-text fields or unknown arenas/fields', () => {
+    expect(gamemodeFieldDefault('tkb_prime', 'team0name')).toBeUndefined()
+    expect(gamemodeFieldDefault('driftball halfg', 'ticketmanagersettings.maxteamsizes.0')).toBeUndefined()
+    expect(gamemodeFieldDefault('zdrift_01', 'nonsense')).toBeUndefined()
   })
 })
 
