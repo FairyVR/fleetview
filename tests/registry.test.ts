@@ -131,9 +131,19 @@ describe('registry integrity (real Orion Drift API)', () => {
   })
 
   it('marks paths whose v2 equivalents 404d as unverified', () => {
-    for (const id of ['fleet.get', 'fleet.update', 'roles.create']) {
+    // fleet.get graduated: live-verified 2026-07-22 via the official dashboard (see its notes).
+    for (const id of ['fleet.update', 'roles.create']) {
       expect((getEndpoint(id) as EndpointDef).status, id).toBe('unverified')
     }
+  })
+
+  it('keeps fleet.get verified with its real (unwrapped) response shape', () => {
+    const e = getEndpoint('fleet.get') as EndpointDef
+    expect(e.status).toBe('verified')
+    expect(e.path).toBe('/v1/fleets/:fleetId')
+    // The live response is flat at the root — no `fleet` wrapper (the old assumed shape).
+    expect(e.responseExample).not.toHaveProperty('fleet')
+    expect(e.responseExample).toHaveProperty('stations')
   })
 
   it('keeps live-verified 2026-07-18 endpoints verified', () => {

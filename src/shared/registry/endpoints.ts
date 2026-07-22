@@ -84,7 +84,8 @@ export const endpoints: EndpointDef[] = [
   {
     id: 'fleet.get',
     name: 'Get fleet (with stations)',
-    description: 'Fleet detail. The response `fleet.stations[]` is the station list for the fleet.',
+    description:
+      'Full fleet detail: stations (incl. ip, session_id, version, online, disabled, last_event) and the fleet config object.',
     category: 'fleet',
     method: 'GET',
     path: '/v1/fleets/:fleetId',
@@ -93,14 +94,31 @@ export const endpoints: EndpointDef[] = [
     permission: 'fleet:read',
     fleetScoped: true,
     responseExample: {
-      fleet: {
-        fleet_id: 'flt_1',
-        fleet_name: 'Strike',
-        stations: [{ station_id: 'stn_1', station_name: 'Station One', online: true }]
-      }
+      fleet_id: 'a93461f2-…',
+      fleet_name: 'Strike Tournament',
+      created: '2026-02-06T21:47:08Z',
+      stations: [
+        {
+          station_id: 'd27f9911-…',
+          fleet_id: 'a93461f2-…',
+          session_id: '65289-a2-server-prod-…',
+          station_name: 'Strike_Tourney',
+          region: 'us-east-2',
+          ip: '82.97.206.98:22740',
+          version: '65289',
+          created: '2026-07-16T00:36:21Z',
+          online: true,
+          last_event: '2026-07-22T11:34:29Z',
+          player_count: 0,
+          disabled: false,
+          config: null
+        }
+      ],
+      config: { is_whitelist: true, is_public: true, primary_color: '#000000' }
     },
-    status: 'unverified',
-    notes: 'Live probing found /v2/fleets/{id} returns 404; this v1 path is unconfirmed. Prefer fleet.list / fleet.stations.'
+    status: 'verified',
+    notes:
+      'Live-verified 2026-07-22 against the official dashboard (200, session auth): the response is FLAT at the root — no `fleet` wrapper. Stations here include ip/disabled/last_event, which the v2 lists omit. (/v2/fleets/{id} still 404s.)'
   },
   {
     id: 'fleet.update',
@@ -114,7 +132,8 @@ export const endpoints: EndpointDef[] = [
     permission: 'fleet:write',
     fleetScoped: true,
     status: 'unverified',
-    notes: 'Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API.'
+    notes:
+      'Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API. The capability is real — the official dashboard has a "Change Fleet Name" admin setting (seen 2026-07-22) — but its exact route/body was not captured.'
   },
   {
     id: 'fleet.config.get',
