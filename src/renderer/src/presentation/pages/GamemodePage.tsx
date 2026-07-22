@@ -403,7 +403,7 @@ function ConfigEditor({ stationId }: { stationId: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <div className="sticky top-0 z-30 flex items-center gap-2 mb-4 flex-wrap bg-[var(--bg)] py-3 -my-3 border-b border-[var(--border-soft)]">
         <Button onClick={() => void run()} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reload
         </Button>
