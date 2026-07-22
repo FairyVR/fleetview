@@ -26,5 +26,6 @@
     "src/shared/**/*",
     "src/preload/index.d.ts",
     "tests/**/*"
-  ]
+  ],
+  "exclude": ["tests/keyService.test.ts", "tests/apiClient.test.ts"]
 }
