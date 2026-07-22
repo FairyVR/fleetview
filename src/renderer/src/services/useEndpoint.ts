@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ApiResponse } from '@shared/models'
 import { api } from '../lib/api'
 
@@ -28,10 +28,16 @@ export function useEndpoint<T = unknown>(
   const [response, setResponse] = useState<ApiResponse<T> | null>(null)
   const [loading, setLoading] = useState(false)
   const paramsKey = JSON.stringify(params ?? {})
+  const bodyKey = JSON.stringify(body ?? null)
+  // Monotonic request id: only the newest run is allowed to write state, so overlapping
+  // runs (Reload spam, a poll slower than its interval, a param switch mid-flight) can't
+  // let an older response clobber a newer one.
+  const seqRef = useRef(0)
 
   const run = useCallback<UseEndpointResult<T>['run']>(
     async (override) => {
       if (!enabled) return null
+      const seq = ++seqRef.current
       setLoading(true)
       try {
         const res = await api.request<T>({
@@ -39,21 +45,21 @@ export function useEndpoint<T = unknown>(
           params: { ...params, ...override?.params },
           body: override?.body ?? body
         })
-        setResponse(res)
+        if (seq === seqRef.current) setResponse(res)
         return res
       } finally {
-        setLoading(false)
+        if (seq === seqRef.current) setLoading(false)
       }
     },
-    // params serialized via paramsKey to keep the callback stable
+    // params/body serialized via paramsKey/bodyKey to keep the callback stable
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [endpointId, paramsKey, enabled]
+    [endpointId, paramsKey, bodyKey, enabled]
   )
 
   useEffect(() => {
     if (auto && enabled) void run()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, enabled, endpointId, paramsKey])
+  }, [auto, enabled, endpointId, paramsKey, bodyKey])
 
   return { data: response?.data ?? null, response, loading, run }
 }

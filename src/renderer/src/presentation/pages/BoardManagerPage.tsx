@@ -53,10 +53,17 @@ function BoardEditor({ stationId }: { stationId: string }) {
   const [original, setOriginal] = useState<BoardSlot[]>(DEFAULT_SLOTS)
   const [loading, setLoading] = useState(false)
   const [savedKey, setSavedKey] = useState('')
+  const [error, setError] = useState('')
 
   async function load() {
     setLoading(true)
+    setError('')
     const res = await api.request({ endpointId: 'station.config.get', params: { stationId } })
+    if (!res.ok) {
+      setError(res.error?.message ?? 'Could not load the station config.')
+      setLoading(false)
+      return
+    }
     const fetched = slotsFromConfig(res.data)
     const next = fetched.length ? fetched : DEFAULT_SLOTS
     setSlots(next)
@@ -73,8 +80,8 @@ function BoardEditor({ stationId }: { stationId: string }) {
   }
 
   /** Writes the config patch flat (no wrapper) — the shape the live API accepts. */
-  async function writeConfig(patch: Record<string, string>) {
-    await api.request({
+  function writeConfig(patch: Record<string, string>) {
+    return api.request({
       endpointId: 'station.config.set',
       params: { stationId, ...CONFIG_WRITE_PARAMS },
       body: patch
@@ -82,7 +89,12 @@ function BoardEditor({ stationId }: { stationId: string }) {
   }
 
   async function apply(slot: BoardSlot) {
-    await writeConfig({ [slot.key]: slot.textureUrl })
+    setError('')
+    const res = await writeConfig({ [slot.key]: slot.textureUrl })
+    if (!res.ok) {
+      setError(res.error?.message ?? `Could not apply ${slot.name}.`)
+      return
+    }
     setSavedKey(slot.key)
     setTimeout(() => setSavedKey(''), 1200)
   }
@@ -90,7 +102,12 @@ function BoardEditor({ stationId }: { stationId: string }) {
   async function saveAll() {
     const changed = slots.filter((s) => s.textureUrl !== original.find((o) => o.key === s.key)?.textureUrl)
     if (!changed.length) return
-    await writeConfig(Object.fromEntries(changed.map((s) => [s.key, s.textureUrl])))
+    setError('')
+    const res = await writeConfig(Object.fromEntries(changed.map((s) => [s.key, s.textureUrl])))
+    if (!res.ok) {
+      setError(res.error?.message ?? 'Could not save board changes.')
+      return
+    }
     setOriginal(slots)
   }
 
@@ -108,6 +125,7 @@ function BoardEditor({ stationId }: { stationId: string }) {
           </Button>
         </PermissionGate>
         {dirty && <Badge tone="warn">unsaved changes</Badge>}
+        {error && <Badge tone="bad"><XCircle size={11} /> {error}</Badge>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

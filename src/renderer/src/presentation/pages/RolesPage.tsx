@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Shield, RefreshCw, Send, Users, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
@@ -51,15 +51,27 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [removing, setRemoving] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  // Guards the members load so a slower response for a previously-opened role can't
+  // overwrite the currently-open one — and so a rejection can't strand "Loading…".
+  const activeRoleRef = useRef<string | null>(null)
 
   const roles = asRoles(data)
 
   async function openMembers(role: Role) {
+    activeRoleRef.current = role.id
     setMemberRole(role)
     setMembers(null)
     setSelected(new Set())
     setRemoveError(null)
-    setMembers(await loadRoleMembers(fleetId, role.id))
+    try {
+      const loaded = await loadRoleMembers(fleetId, role.id)
+      if (activeRoleRef.current === role.id) setMembers(loaded)
+    } catch {
+      if (activeRoleRef.current === role.id) {
+        setMembers([])
+        setRemoveError('Could not load members for this role.')
+      }
+    }
   }
 
   function toggleSelected(id: string) {
