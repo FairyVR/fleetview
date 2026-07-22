@@ -57,6 +57,34 @@ export function gamemodeKey(gm: string, field: string): string {
  */
 export const CONFIG_WRITE_PARAMS = { include_fleet_config: true, include_event_config: false }
 
+/**
+ * Parse a user-entered flat config patch (JSON object of dotted keys) into the write shape:
+ * every value stringified, nested objects/arrays/null rejected. Returns an error string
+ * instead of throwing so callers can surface it. Used by the multi-station Config Push.
+ */
+export function parseConfigPatch(text: string): { patch: Record<string, string> } | { error: string } {
+  const t = text.trim()
+  if (!t) return { error: 'Enter a config patch first.' }
+  let obj: unknown
+  try {
+    obj = JSON.parse(t)
+  } catch (e) {
+    return { error: `Not valid JSON: ${(e as Error).message}` }
+  }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return { error: 'Patch must be a JSON object of "dotted.key": value pairs.' }
+  }
+  const patch: Record<string, string> = {}
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (v === null || typeof v === 'object') {
+      return { error: `Value for "${k}" must be a string, number, or boolean (config keys are flat).` }
+    }
+    patch[k] = String(v)
+  }
+  if (!Object.keys(patch).length) return { error: 'Patch is empty.' }
+  return { patch }
+}
+
 export function configDiff(
   original: Record<string, unknown>,
   edited: Record<string, unknown>

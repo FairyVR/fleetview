@@ -5,6 +5,7 @@ import {
   Server,
   Gamepad2,
   Image,
+  Layers,
   Users,
   UserSearch,
   Shield,
@@ -41,7 +42,8 @@ export const NAV: NavGroup[] = [
       { to: '/live', label: 'Live Ops', icon: Radio },
       { to: '/stations', label: 'Station Manager', icon: Server },
       { to: '/gamemodes', label: 'Gamemode Manager', icon: Gamepad2 },
-      { to: '/board', label: 'Board Manager', icon: Image }
+      { to: '/board', label: 'Board Manager', icon: Image },
+      { to: '/config-push', label: 'Config Push', icon: Layers }
     ]
   },
   {

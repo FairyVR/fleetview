@@ -4,7 +4,8 @@ import {
   coerceValue,
   gamemodeKey,
   configDiff,
-  gamemodeFieldDefault
+  gamemodeFieldDefault,
+  parseConfigPatch
 } from '../src/renderer/src/lib/stationConfig'
 import { gamemodeDisplayName, gamemodeGroup } from '../src/renderer/src/lib/gamemodes'
 import { boardName } from '../src/renderer/src/lib/boards'
@@ -102,5 +103,28 @@ describe('gamemodeKey', () => {
     expect(gamemodeKey('1200_Full_2', 'matchlengthseconds')).toBe(
       'loadedgamemodes.1200_Full_2.modulestate.dashboardconfigoverrides.matchlengthseconds'
     )
+  })
+})
+
+describe('parseConfigPatch', () => {
+  it('stringifies every value into the flat write shape', () => {
+    const r = parseConfigPatch('{"is_whitelist": true, "matchlengthseconds": 300, "team0name": "Red"}')
+    expect('patch' in r && r.patch).toEqual({
+      is_whitelist: 'true',
+      matchlengthseconds: '300',
+      team0name: 'Red'
+    })
+  })
+
+  it('rejects non-JSON, arrays, and empty input', () => {
+    expect('error' in parseConfigPatch('not json')).toBe(true)
+    expect('error' in parseConfigPatch('[1,2,3]')).toBe(true)
+    expect('error' in parseConfigPatch('   ')).toBe(true)
+    expect('error' in parseConfigPatch('{}')).toBe(true)
+  })
+
+  it('rejects nested objects and null (config keys must be flat)', () => {
+    expect('error' in parseConfigPatch('{"a": {"b": 1}}')).toBe(true)
+    expect('error' in parseConfigPatch('{"a": null}')).toBe(true)
   })
 })

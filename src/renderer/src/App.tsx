@@ -11,6 +11,7 @@ import LiveOpsPage from './presentation/pages/LiveOpsPage'
 import StationPage from './presentation/pages/StationPage'
 import GamemodePage from './presentation/pages/GamemodePage'
 import BoardManagerPage from './presentation/pages/BoardManagerPage'
+import StationConfigPushPage from './presentation/pages/StationConfigPushPage'
 import PlayerPage from './presentation/pages/PlayerPage'
 import PlayerLookupPage from './presentation/pages/PlayerLookupPage'
 import RolesPage from './presentation/pages/RolesPage'
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/stations" element={<StationPage />} />
         <Route path="/gamemodes" element={<GamemodePage />} />
         <Route path="/board" element={<BoardManagerPage />} />
+        <Route path="/config-push" element={<StationConfigPushPage />} />
         <Route path="/players" element={<PlayerPage />} />
         <Route path="/lookup" element={<PlayerLookupPage />} />
         <Route path="/roles" element={<RolesPage />} />
