@@ -10,13 +10,15 @@ import {
   RefreshCw,
   Star,
   ArrowDownToLine,
-  Trash2
+  Trash2,
+  Building2
 } from 'lucide-react'
 import type { Preset } from '@shared/models'
 import { PageHeader, Card, Button, Badge, EmptyState } from '../components/ui'
 import { JsonEditor, JsonDiff, validateJson } from '../components/JsonEditor'
 import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
+import { useSelectionStore } from '../../state/useSelectionStore'
 import { prettyJson } from '../../lib/format'
 import { api } from '../../lib/api'
 import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
@@ -39,6 +41,7 @@ export default function ConfigEditorPage() {
 }
 
 function Workbench({ stationId }: { stationId: string }) {
+  const fleetId = useSelectionStore((s) => s.fleetId)
   const [baseline, setBaseline] = useState('{}')
   const [text, setText] = useState('{}')
   const [showDiff, setShowDiff] = useState(false)
@@ -63,6 +66,25 @@ function Workbench({ stationId }: { stationId: string }) {
       setLoading(false)
     }
   }, [stationId])
+
+  /** Pull the fleet-level config into the editor so the station can be reset to it (review, then Save). */
+  async function loadFleetConfig() {
+    if (!fleetId) return
+    setLoading(true)
+    try {
+      const res = await api.request({ endpointId: 'fleet.config.get', params: { fleetId } })
+      if (res.ok) {
+        const cfg = (res.data as { config?: unknown } | null)?.config ?? res.data
+        setText(prettyJson(cfg ?? {}))
+        setNote({ tone: 'good', msg: 'Loaded fleet config — review the diff, then Save to apply.' })
+      } else {
+        setNote({ tone: 'bad', msg: res.error?.message ?? `HTTP ${res.status}` })
+      }
+    } finally {
+      setLoading(false)
+      setTimeout(() => setNote(null), 3500)
+    }
+  }
 
   const refreshFavorites = useCallback(async () => {
     const all = await api.listPresets()
@@ -157,6 +179,13 @@ function Workbench({ stationId }: { stationId: string }) {
             <Button onClick={() => void load()} disabled={loading}>
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reload
             </Button>
+            <Button
+              onClick={() => void loadFleetConfig()}
+              disabled={loading || !fleetId}
+              title="Load this fleet's config into the editor — review the diff, then Save to reset the station to it"
+            >
+              <Building2 size={14} /> Reset to fleet config
+            </Button>
             <label className="btn cursor-pointer">
               <Upload size={14} /> Import
               <input type="file" accept=".json" hidden onChange={importFile} />
@@ -177,9 +206,9 @@ function Workbench({ stationId }: { stationId: string }) {
         </div>
 
         {showDiff ? (
-          <JsonDiff original={baseline} modified={text} height={460} />
+          <JsonDiff original={baseline} modified={text} height={680} />
         ) : (
-          <JsonEditor value={text} onChange={setText} height={460} />
+          <JsonEditor value={text} onChange={setText} height={680} />
         )}
       </Card>
 
