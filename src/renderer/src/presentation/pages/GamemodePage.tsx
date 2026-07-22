@@ -305,12 +305,12 @@ function ConfigEditor({ stationId }: { stationId: string }) {
           <div className="space-y-4">
             {/* ---------- Config editor ---------- */}
             <Card>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-5">
                 <SlidersHorizontal size={15} className="text-[var(--accent)]" />
                 <span className="font-medium text-[13px]">Config editor</span>
                 <Badge>station settings</Badge>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-4">
                 {configRows.map((key) => {
                   const pinned = PINNED_KEYS.find((p) => p.key === key)
                   const value = edited[key]
