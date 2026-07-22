@@ -6,6 +6,7 @@ import {
   Gamepad2,
   Image,
   Users,
+  UserSearch,
   Shield,
   Gavel,
   Activity,
@@ -47,6 +48,7 @@ export const NAV: NavGroup[] = [
     title: 'Community',
     items: [
       { to: '/players', label: 'Player Manager', icon: Users },
+      { to: '/lookup', label: 'Player Lookup', icon: UserSearch },
       { to: '/roles', label: 'Roles', icon: Shield },
       { to: '/moderation', label: 'Moderation', icon: Gavel }
     ]

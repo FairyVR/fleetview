@@ -12,6 +12,7 @@ import StationPage from './presentation/pages/StationPage'
 import GamemodePage from './presentation/pages/GamemodePage'
 import BoardManagerPage from './presentation/pages/BoardManagerPage'
 import PlayerPage from './presentation/pages/PlayerPage'
+import PlayerLookupPage from './presentation/pages/PlayerLookupPage'
 import RolesPage from './presentation/pages/RolesPage'
 import ModerationPage from './presentation/pages/ModerationPage'
 import EventsPage from './presentation/pages/EventsPage'
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/gamemodes" element={<GamemodePage />} />
         <Route path="/board" element={<BoardManagerPage />} />
         <Route path="/players" element={<PlayerPage />} />
+        <Route path="/lookup" element={<PlayerLookupPage />} />
         <Route path="/roles" element={<RolesPage />} />
         <Route path="/moderation" element={<ModerationPage />} />
         <Route path="/events" element={<EventsPage />} />
