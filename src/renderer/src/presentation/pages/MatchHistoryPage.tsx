@@ -6,13 +6,16 @@ import { RequestResult } from '../components/RequestResult'
 import { StationScoped } from '../components/StationScoped'
 import { gamemodeDisplayName } from '../../lib/gamemodes'
 import { ts } from '../../lib/format'
+import { matchResult, winningTeam, type MatchWinner } from '../../lib/matchResult'
 
 interface Match {
   id: string
   arena: string
   trigger?: string
-  /** 0 | 1 from "teamN match win" triggers (bot-confirmed semantics). */
+  /** 0 | 1 winning team — from the "teamN match win" trigger, else the higher score. */
   winner?: 0 | 1
+  /** Full result incl. 'tie'/null, for badges. */
+  result: MatchWinner
   score0?: number
   score1?: number
   players: Array<{ name: string; team?: number }>
@@ -42,18 +45,18 @@ function asMatches(data: unknown): Match[] {
       const players = Array.isArray(ed.players) ? ed.players : []
       const at = typeof e.timestamp === 'string' ? Date.parse(e.timestamp) : NaN
       const trigger = typeof ed.event_trigger === 'string' ? ed.event_trigger : undefined
-      const winner = trigger?.toLowerCase().startsWith('team0')
-        ? (0 as const)
-        : trigger?.toLowerCase().startsWith('team1')
-          ? (1 as const)
-          : undefined
+      const score0 = typeof scores['0'] === 'number' ? (scores['0'] as number) : undefined
+      const score1 = typeof scores['1'] === 'number' ? (scores['1'] as number) : undefined
+      // Winner from the stop reason first ("teamN match win"), else the higher score.
+      const result = matchResult(trigger, score0, score1)
       return {
         id: String(e.idx ?? ''),
         arena: gamemodeDisplayName(String(ed.slot_id ?? 'unknown')),
         trigger,
-        winner,
-        score0: typeof scores['0'] === 'number' ? (scores['0'] as number) : undefined,
-        score1: typeof scores['1'] === 'number' ? (scores['1'] as number) : undefined,
+        winner: winningTeam(trigger, score0, score1),
+        result,
+        score0,
+        score1,
         players: players
           .map((p) => p as Record<string, unknown>)
           .map((p) => ({ name: String(p?.name ?? ''), team: playerTeam(p) }))
@@ -114,10 +117,18 @@ function MatchList({ stationId }: { stationId: string }) {
                       <Trophy size={15} className="text-[var(--accent)]" />
                       <span className="font-medium">{m.arena}</span>
                       {m.score0 !== undefined && m.score1 !== undefined && (
-                        <Badge tone={m.winner !== undefined ? 'good' : 'accent'}>
-                          {m.winner === 0 ? <b>{m.score0}</b> : m.score0} – {m.winner === 1 ? <b>{m.score1}</b> : m.score1}
+                        <Badge tone={m.result === 'tie' ? 'accent' : m.winner !== undefined ? 'good' : 'neutral'}>
+                          <span className={m.winner === 0 ? 'font-bold text-[var(--good,#34d399)]' : m.winner === 1 ? 'opacity-60' : ''}>
+                            {m.score0}
+                          </span>
+                          {' – '}
+                          <span className={m.winner === 1 ? 'font-bold text-[var(--good,#34d399)]' : m.winner === 0 ? 'opacity-60' : ''}>
+                            {m.score1}
+                          </span>
                         </Badge>
                       )}
+                      {m.winner !== undefined && <Badge tone="good">Team {m.winner} won</Badge>}
+                      {m.result === 'tie' && <Badge tone="accent">Tie</Badge>}
                       {m.trigger && <Badge>{m.trigger}</Badge>}
                       {m.at && <span className="text-[11px] text-[var(--text-dim)] ml-auto">{ts(m.at)}</span>}
                     </div>
