@@ -92,6 +92,16 @@ export default function SettingsPage() {
         <label className="flex items-center gap-2.5 cursor-pointer">
           <input
             type="checkbox"
+            checked={draft.dangerZone}
+            onChange={(e) => setDraft({ ...draft, dangerZone: e.target.checked })}
+          />
+          <span className="text-[13px]">Danger Zone</span>
+          <Badge tone="warn">WIP</Badge>
+        </label>
+
+        <label className="flex items-center gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
             checked={draft.showIds}
             onChange={(e) => setDraft({ ...draft, showIds: e.target.checked })}
           />

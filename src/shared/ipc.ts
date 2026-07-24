@@ -65,6 +65,8 @@ export interface AppSettings {
   developerMode: boolean
   /** Show internal IDs (fleet/station/player) in lists. Off by default. */
   showIds: boolean
+  /** Unlocks the Danger Zone section (raw movement-physics writes). Off by default. */
+  dangerZone: boolean
 }
 
 /** The typed surface exposed to the renderer as `window.api`. */

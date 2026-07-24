@@ -35,7 +35,8 @@ function readSettings(): AppSettings {
     maxRetries: settingsStore.get('maxRetries'),
     theme: settingsStore.get('theme'),
     developerMode: settingsStore.get('developerMode'),
-    showIds: settingsStore.get('showIds')
+    showIds: settingsStore.get('showIds'),
+    dangerZone: settingsStore.get('dangerZone')
   }
 }
 
@@ -85,6 +86,7 @@ function sanitizeSettingsPatch(patch: Partial<AppSettings>): Partial<AppSettings
   if ('theme' in patch) out.theme = patch.theme
   if ('developerMode' in patch) out.developerMode = !!patch.developerMode
   if ('showIds' in patch) out.showIds = !!patch.showIds
+  if ('dangerZone' in patch) out.dangerZone = !!patch.dangerZone
   return out
 }
 

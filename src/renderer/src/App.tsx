@@ -7,11 +7,9 @@ import { Spinner } from './presentation/components/ui'
 
 import DashboardPage from './presentation/pages/DashboardPage'
 import FleetPage from './presentation/pages/FleetPage'
-import LiveOpsPage from './presentation/pages/LiveOpsPage'
 import StationPage from './presentation/pages/StationPage'
 import GamemodePage from './presentation/pages/GamemodePage'
 import BoardManagerPage from './presentation/pages/BoardManagerPage'
-import StationConfigPushPage from './presentation/pages/StationConfigPushPage'
 import PlayerPage from './presentation/pages/PlayerPage'
 import PlayerLookupPage from './presentation/pages/PlayerLookupPage'
 import RolesPage from './presentation/pages/RolesPage'
@@ -24,6 +22,7 @@ import EndpointExplorerPage from './presentation/pages/EndpointExplorerPage'
 import DevModePage from './presentation/pages/DevModePage'
 import LogsPage from './presentation/pages/LogsPage'
 import KeysPage from './presentation/pages/KeysPage'
+import DangerSystemPage from './presentation/pages/DangerSystemPage'
 import SettingsPage from './presentation/pages/SettingsPage'
 
 export default function App() {
@@ -49,11 +48,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/fleets" element={<FleetPage />} />
-        <Route path="/live" element={<LiveOpsPage />} />
         <Route path="/stations" element={<StationPage />} />
         <Route path="/gamemodes" element={<GamemodePage />} />
         <Route path="/board" element={<BoardManagerPage />} />
-        <Route path="/config-push" element={<StationConfigPushPage />} />
         <Route path="/players" element={<PlayerPage />} />
         <Route path="/lookup" element={<PlayerLookupPage />} />
         <Route path="/roles" element={<RolesPage />} />
@@ -65,6 +62,7 @@ export default function App() {
         <Route path="/endpoints" element={<EndpointExplorerPage />} />
         <Route path="/devmode" element={<DevModePage />} />
         <Route path="/logs" element={<LogsPage />} />
+        <Route path="/danger/system" element={<DangerSystemPage />} />
         <Route path="/keys" element={<KeysPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>

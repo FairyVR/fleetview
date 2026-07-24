@@ -1,11 +1,9 @@
 import {
   LayoutDashboard,
   Rocket,
-  Radio,
   Server,
   Gamepad2,
   Image,
-  Layers,
   Users,
   UserSearch,
   Shield,
@@ -19,6 +17,7 @@ import {
   ScrollText,
   KeyRound,
   Settings,
+  AlertTriangle,
   type LucideIcon
 } from 'lucide-react'
 
@@ -39,11 +38,9 @@ export const NAV: NavGroup[] = [
     title: 'Fleet Ops',
     items: [
       { to: '/fleets', label: 'Fleet Explorer', icon: Rocket },
-      { to: '/live', label: 'Live Ops', icon: Radio },
       { to: '/stations', label: 'Station Manager', icon: Server },
       { to: '/gamemodes', label: 'Gamemode Manager', icon: Gamepad2 },
-      { to: '/board', label: 'Board Manager', icon: Image },
-      { to: '/config-push', label: 'Config Push', icon: Layers }
+      { to: '/board', label: 'Board Manager', icon: Image }
     ]
   },
   {
@@ -85,3 +82,9 @@ export const NAV: NavGroup[] = [
     ]
   }
 ]
+
+/** Shown only when the Danger Zone setting is enabled. */
+export const DANGER_NAV: NavGroup = {
+  title: 'Danger Zone',
+  items: [{ to: '/danger/system', label: 'System', icon: AlertTriangle }]
+}

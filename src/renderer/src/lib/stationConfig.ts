@@ -16,6 +16,8 @@ export function classifyKey(key: string): KeyClass {
   // LE strings aren't human-editable; colors can't be changed per station;
   // board URLs belong to the Board Manager.
   if (/^CustomGamemodes\./i.test(key)) return { kind: 'hidden' }
+  // PushOffSpeed netvars are edited only from the Danger Zone System page.
+  if (/^pushoffspeed(key|value)[1-4]$/i.test(key)) return { kind: 'hidden' }
   if (key === 'primary_color' || key === 'secondary_color') return { kind: 'hidden' }
   if (key.startsWith('config.stationConfig.BoardTextureUrl')) return { kind: 'hidden' }
   const m = GM_RE.exec(key)
@@ -58,31 +60,15 @@ export function gamemodeKey(gm: string, field: string): string {
 export const CONFIG_WRITE_PARAMS = { include_fleet_config: true, include_event_config: false }
 
 /**
- * Parse a user-entered flat config patch (JSON object of dotted keys) into the write shape:
- * every value stringified, nested objects/arrays/null rejected. Returns an error string
- * instead of throwing so callers can surface it. Used by the multi-station Config Push.
+ * Keys present in the original config but missing from the edit. The POST write is a
+ * partial update and cannot delete keys — callers must send these to the DELETE
+ * endpoint (`station.config.delete`, body = array of key names) instead.
  */
-export function parseConfigPatch(text: string): { patch: Record<string, string> } | { error: string } {
-  const t = text.trim()
-  if (!t) return { error: 'Enter a config patch first.' }
-  let obj: unknown
-  try {
-    obj = JSON.parse(t)
-  } catch (e) {
-    return { error: `Not valid JSON: ${(e as Error).message}` }
-  }
-  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
-    return { error: 'Patch must be a JSON object of "dotted.key": value pairs.' }
-  }
-  const patch: Record<string, string> = {}
-  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-    if (v === null || typeof v === 'object') {
-      return { error: `Value for "${k}" must be a string, number, or boolean (config keys are flat).` }
-    }
-    patch[k] = String(v)
-  }
-  if (!Object.keys(patch).length) return { error: 'Patch is empty.' }
-  return { patch }
+export function configRemovedKeys(
+  original: Record<string, unknown>,
+  edited: Record<string, unknown>
+): string[] {
+  return Object.keys(original).filter((k) => !(k in edited))
 }
 
 export function configDiff(
