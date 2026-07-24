@@ -564,6 +564,54 @@ export const endpoints: EndpointDef[] = [
     fleetScoped: true,
     status: 'verified'
   },
+  {
+    id: 'moderation.getBan',
+    name: 'Get ban',
+    description: "A single ban's full detail, including comments + duration (the list omits both).",
+    category: 'moderation',
+    method: 'GET',
+    path: '/v1/fleets/:fleetId/bans/:banId',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'banId', in: 'path', required: true, example: 'ban_1' }
+    ],
+    requiresAuth: true,
+    permission: 'user_data:read',
+    fleetScoped: true,
+    responseExample: {
+      ban_id: '3602fd75-…',
+      user_id: '6807043526078982',
+      username: 'SomePlayer',
+      timestamp: '2026-07-24T18:38:49.515597Z',
+      expiration: '2026-07-24T19:08:49.503719',
+      reason: 'Test Reason 123',
+      comments: '',
+      duration: 30,
+      revoked: false
+    },
+    status: 'verified',
+    notes:
+      'Live-verified 2026-07-24. Unlike the fleet bans list, this returns `comments` and `duration` (minutes). Note `expiration` is UTC but omits the trailing Z.'
+  },
+  {
+    id: 'moderation.updateBan',
+    name: 'Edit ban',
+    description: "Update an existing ban's reason.",
+    category: 'moderation',
+    method: 'PATCH',
+    path: '/v1/fleets/:fleetId/bans/:banId',
+    params: [
+      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
+      { name: 'banId', in: 'path', required: true, example: 'ban_1' }
+    ],
+    requiresAuth: true,
+    permission: 'user_ban:update',
+    fleetScoped: true,
+    requestExample: { reason: 'username', duration: null, comments: 'updated reason' },
+    status: 'verified',
+    notes:
+      'Live-verified 2026-07-24 (edit succeeded from FleetView). Body requires all three of reason + duration + comments (each was reported required by a 422). `reason` and `comments` are distinct fields; `duration` is echoed back verbatim to preserve the ban length.'
+  },
 
   // ── Reports ────────────────────────────────────────────────────────
   {

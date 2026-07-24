@@ -25,6 +25,21 @@ describe('asBans (live payload shape)', () => {
     expect(b.revoked).toBe(false)
   })
 
+  it('parses a tz-less expiration as UTC (the API omits the trailing Z there)', () => {
+    // timestamp has Z, expiration does not — both are UTC. A past UTC expiration
+    // must read as expired, not be shifted into the future as local time.
+    const [b] = asBans({
+      bans: [{ ban_id: 'x', user_id: 'u', timestamp: '2026-07-24T18:38:49.5Z', expiration: '2026-07-24T19:08:49.5' }]
+    })
+    expect(b.expiresAt).toBe(Date.parse('2026-07-24T19:08:49.5Z'))
+  })
+
+  it('captures comments + duration from the single-ban shape', () => {
+    const [b] = asBans([{ ban_id: 'x', user_id: 'u', reason: 'r', comments: 'note', duration: 30 }])
+    expect(b.comments).toBe('note')
+    expect(b.duration).toBe(30)
+  })
+
   it('still tolerates legacy numeric fields and bare arrays', () => {
     const [b] = asBans([{ id: 'x', userId: 'u', banned_at: 123, expires_at: 456 }])
     expect(b.bannedAt).toBe(123)

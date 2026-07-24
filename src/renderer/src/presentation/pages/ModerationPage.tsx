@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Lock, Trash2, Clock, Maximize2, X } from 'lucide-react'
+import { Lock, Trash2, Clock, Maximize2, X, Pencil } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
 import { PageHeader, Button, Badge, Field, JsonBlock, EmptyState } from '../components/ui'
@@ -7,7 +7,7 @@ import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { ts } from '../../lib/format'
-import { asBans } from '../../lib/bans'
+import { asBans, type Ban } from '../../lib/bans'
 import { resolveUserId } from '../../lib/fleetUsers'
 import { useAppStore } from '../../state/useAppStore'
 
@@ -80,6 +80,13 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
   const [unbanUserId, setUnbanUserId] = useState('')
   const [unbanResult, setUnbanResult] = useState<{ ok: boolean; error?: unknown } | null>(null)
 
+  const [editingBan, setEditingBan] = useState<Ban | null>(null)
+  const [editReason, setEditReason] = useState('')
+  const [editComments, setEditComments] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<unknown>(null)
+  const [justSavedId, setJustSavedId] = useState<string | null>(null)
+
   const { response: bansResponse, loading: bansLoading, run: runBans } = useEndpoint<unknown>('moderation.bans', {
     params: { fleetId, include_revoked: true, include_expired: true },
     auto: true
@@ -115,6 +122,54 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
       void runBans()
     }
     setTimeout(() => setBanResult(null), 3000)
+  }
+
+  async function startEdit(ban: Ban) {
+    setEditingBan(ban)
+    setEditReason(ban.reason)
+    setEditComments(ban.comments ?? '')
+    setEditError(null)
+    // The bans list omits `comments` and `duration`; the single-ban GET has both.
+    // Fetch them so the form prefills the comment and we echo the real duration back.
+    const res = await api.request({ endpointId: 'moderation.getBan', params: { fleetId, banId: ban.id } })
+    if (!res.ok) {
+      // Don't fail silently — a blank comment field with no reason is what made this
+      // look broken. Surface why the detail fetch failed (e.g. needs an app restart).
+      setEditError({ error: res.error ?? 'Could not load ban detail', context: 'loading comments' })
+      return
+    }
+    const [full] = asBans([res.data])
+    // Only apply if the user is still editing this same ban.
+    setEditingBan((cur) => (full && cur?.id === full.id ? full : cur))
+    setEditComments((cur) => (cur === '' && full?.comments ? full.comments : cur))
+  }
+
+  async function handleSaveReason() {
+    if (!editingBan || !editReason.trim()) return
+    setEditSaving(true)
+    setEditError(null)
+    const sentBody = {
+      reason: editReason.trim(),
+      duration: editingBan.duration ?? null,
+      comments: editComments.trim()
+    }
+    const res = await api.request({
+      endpointId: 'moderation.updateBan',
+      params: { fleetId, banId: editingBan.id },
+      // Echo reason + duration back untouched; only the comment text changes.
+      body: sentBody
+    })
+    setEditSaving(false)
+    if (res.ok) {
+      const savedId = editingBan.id
+      setEditingBan(null)
+      setJustSavedId(savedId)
+      setTimeout(() => setJustSavedId((c) => (c === savedId ? null : c)), 2500)
+      void runBans()
+    } else {
+      // Surface what we actually sent so a 422 shows which field the server rejected.
+      setEditError({ error: res.error ?? 'Update failed', sentBody })
+    }
   }
 
   async function handleUnban() {
@@ -257,7 +312,71 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
                             </span>
                           )}
                         </div>
-                        <p className="text-[var(--text-dim)]">{ban.reason}</p>
+                        {editingBan?.id === ban.id ? (
+                          <div className="space-y-2">
+                            <Field label="Reason">
+                              <input
+                                className="input w-full"
+                                value={editReason}
+                                onChange={(e) => setEditReason(e.target.value)}
+                                disabled={editSaving}
+                                autoFocus
+                              />
+                            </Field>
+                            <Field label="Comments">
+                              <textarea
+                                className="input w-full"
+                                rows={2}
+                                value={editComments}
+                                onChange={(e) => setEditComments(e.target.value)}
+                                disabled={editSaving}
+                              />
+                            </Field>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="primary"
+                                onClick={() => void handleSaveReason()}
+                                disabled={editSaving || !editReason.trim()}
+                                className="!py-1"
+                              >
+                                {editSaving ? 'Saving…' : 'Save'}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() => setEditingBan(null)}
+                                disabled={editSaving}
+                                className="!py-1"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                            <p className="text-[11px] text-[var(--text-faint)] flex items-center gap-1.5">
+                              <Clock size={11} /> Edits can take up to 5 minutes to propagate — if you
+                              re-open this to edit again, it may show the old text until then.
+                            </p>
+                            {editError != null && <JsonBlock value={editError} className="max-h-40" />}
+                          </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[var(--text-dim)]">{ban.reason}</p>
+                              {ban.comments && (
+                                <p className="text-[var(--text-faint)] text-[11.5px] mt-0.5">{ban.comments}</p>
+                              )}
+                            </div>
+                            {justSavedId === ban.id && <Badge tone="good">Saved</Badge>}
+                            <PermissionGate scope="user_ban:update" hideWhenDenied>
+                              <Button
+                                variant="ghost"
+                                title="Edit reason"
+                                onClick={() => void startEdit(ban)}
+                                className="!p-1 shrink-0"
+                              >
+                                <Pencil size={12} className="text-[var(--text-faint)]" />
+                              </Button>
+                            </PermissionGate>
+                          </div>
+                        )}
                       </div>
                       )
                     })}

@@ -1,8 +1,8 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-24T02:09:20.944Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-24T20:56:07.882Z._
 
-**32** endpoints registered · **28** verified · **4** unverified.
+**34** endpoints registered · **30** verified · **4** unverified.
 
 > Base URL `https://api.oriondrift.net` · auth header `x-api-key`. See `docs/API-DISCOVERY.md`.
 >
@@ -39,6 +39,8 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-24T02:09:20.9
 | `moderation.bans` | GET | `/v2/fleets/:fleetId/bans` | yes | user_data:read | verified |
 | `moderation.ban` | POST | `/v2/fleets/:fleetId/users/:userId/ban` | yes | user_ban:write | verified |
 | `moderation.unban` | PATCH | `/v2/fleets/:fleetId/users/:userId/unban` | yes | user_ban:revoke | verified |
+| `moderation.getBan` | GET | `/v1/fleets/:fleetId/bans/:banId` | yes | user_data:read | verified |
+| `moderation.updateBan` | PATCH | `/v1/fleets/:fleetId/bans/:banId` | yes | user_ban:update | verified |
 | `reports.list` | GET | `/v2/fleets/:fleetId/reports` | yes | fleet_report:read | verified |
 | `events.fleet` | GET | `/v2/fleets/:fleetId/server_events` | yes | server_event:read | verified |
 | `events.station` | GET | `/v2/stations/:stationId/server_events` | yes | server_event:read | verified |
@@ -639,6 +641,58 @@ Revoke a ban for a user in a fleet.
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
   - `userId` (path) — required — e.g. `usr_1`
+
+### Get ban — `moderation.getBan`
+
+A single ban's full detail, including comments + duration (the list omits both).
+
+- **Method / Path:** `GET /v1/fleets/:fleetId/bans/:banId`
+- **Auth required:** yes
+- **Permission scope:** user_data:read
+- **Status:** verified
+- **Fleet-scoped**
+- **Parameters:**
+  - `fleetId` (path) — required — e.g. `flt_1`
+  - `banId` (path) — required — e.g. `ban_1`
+- **Example response:**
+
+  ```json
+  {
+    "ban_id": "3602fd75-…",
+    "user_id": "6807043526078982",
+    "username": "SomePlayer",
+    "timestamp": "2026-07-24T18:38:49.515597Z",
+    "expiration": "2026-07-24T19:08:49.503719",
+    "reason": "Test Reason 123",
+    "comments": "",
+    "duration": 30,
+    "revoked": false
+  }
+  ```
+- **Notes:** Live-verified 2026-07-24. Unlike the fleet bans list, this returns `comments` and `duration` (minutes). Note `expiration` is UTC but omits the trailing Z.
+
+### Edit ban — `moderation.updateBan`
+
+Update an existing ban's reason.
+
+- **Method / Path:** `PATCH /v1/fleets/:fleetId/bans/:banId`
+- **Auth required:** yes
+- **Permission scope:** user_ban:update
+- **Status:** verified
+- **Fleet-scoped**
+- **Parameters:**
+  - `fleetId` (path) — required — e.g. `flt_1`
+  - `banId` (path) — required — e.g. `ban_1`
+- **Example request body:**
+
+  ```json
+  {
+    "reason": "username",
+    "duration": null,
+    "comments": "updated reason"
+  }
+  ```
+- **Notes:** Live-verified 2026-07-24 (edit succeeded from FleetView). Body requires all three of reason + duration + comments (each was reported required by a 422). `reason` and `comments` are distinct fields; `duration` is echoed back verbatim to preserve the ban length.
 
 ### List fleet reports — `reports.list`
 
