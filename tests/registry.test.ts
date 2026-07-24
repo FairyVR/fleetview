@@ -59,9 +59,16 @@ describe('buildUrl', () => {
   })
 
   it('substitutes multiple path params (fleet + user + role)', () => {
+    const unassign = getEndpoint('roles.unassign') as EndpointDef
+    const { path, missing } = buildUrl(unassign, { fleetId: 'flt_1', userId: 'usr_1', roleId: 'rol_1' })
+    expect(path).toBe('/v1/fleets/flt_1/users/usr_1/role/rol_1')
+    expect(missing).toEqual([])
+  })
+
+  it('roles.assign uses the v2 user_roles route (body-based, works for users outside the fleet)', () => {
     const assign = getEndpoint('roles.assign') as EndpointDef
-    const { path, missing } = buildUrl(assign, { fleetId: 'flt_1', userId: 'usr_1', roleId: 'rol_1' })
-    expect(path).toBe('/v1/fleets/flt_1/users/usr_1/roles/rol_1')
+    const { path, missing } = buildUrl(assign, { fleetId: 'flt_1' })
+    expect(path).toBe('/v2/fleets/flt_1/user_roles')
     expect(missing).toEqual([])
   })
 })

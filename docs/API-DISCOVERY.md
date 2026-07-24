@@ -117,6 +117,12 @@ Verified against the StrikeTournamentTool Discord bot, which writes this endpoin
 production. FleetView centralizes the shape in `configDiff()`/`CONFIG_WRITE_PARAMS`
 (`src/renderer/src/lib/stationConfig.ts`).
 
+**Deleting keys** (2026-07-23, schema live-verified by 422 probing):
+`DELETE /v2/stations/{station_id}/config` REQUIRES a body — a JSON array of dotted
+config key names to delete (`["config.spawnPointSettings.overrideSpawnPoint"]`).
+No body / wrong type → 422. There is no bodiless "reset all"; a full reset sends
+every current override key. Per-key delete is how editor key-removals are saved.
+
 ## Structural gotchas
 
 - **Stations come from the fleet list** (`GET /v2/fleets?include_stations=true` →
@@ -134,6 +140,18 @@ production. FleetView centralizes the shape in `configDiff()`/`CONFIG_WRITE_PARA
   the SvelteKit server does most API calls server-side, invisible to the browser). Probe before
   building UI. There is still **no match-history endpoint** — the dashboard's Match History
   page renders `gamemode_stopped` server events, same as FleetView.
+- **Role assignment: use `POST /v2/fleets/{fleet_id}/user_roles`** (body
+  `{ username, role_id, expires_hours }`, scope `user_roles:write`; `expires_hours` is
+  **required and must be an integer** — omitting it 422s "Field required", `null` 422s
+  "Input should be a valid integer". We send `0` for "no expiry"; NOTE enforcement looks
+  absent anyway — a 1-hour grant was observed to NOT auto-remove the role).
+  Live-verified 2026-07-23: it takes a
+  **username** (no user-id resolution needed) and assigns the role even to a user who has
+  **never played in the fleet**, which the old
+  `POST /v1/fleets/{fleet_id}/users/{user_id}/roles/{role_id}` route refused. Default to it.
+  Responds `{ success, user_exists }` — a garbage username still returns HTTP 200 with
+  `user_exists: false`, so check that flag, not the status code. (Unassign still uses the
+  v1 `DELETE .../role/{role_id}` route.)
 - Field names are `snake_case`: `fleet_id`, `fleet_name`, `station_id`, `station_name`,
   `role_id`, `role_name`, `permissions[]`, `user_id`, `ban_id`.
 - Versions are mixed per route (`/v1`, `/v2`, `/v3`) — copy them exactly.

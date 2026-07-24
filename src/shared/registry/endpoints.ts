@@ -248,8 +248,8 @@ export const endpoints: EndpointDef[] = [
   },
   {
     id: 'station.config.delete',
-    name: 'Reset station config',
-    description: 'Delete/reset the station config override.',
+    name: 'Delete station config keys',
+    description: 'Delete specific station config override keys (per-key delete).',
     category: 'config',
     method: 'DELETE',
     path: '/v2/stations/:stationId/config',
@@ -257,6 +257,9 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'station_config:write',
     stationScoped: true,
+    requestExample: ['config.spawnPointSettings.overrideSpawnPoint'],
+    notes:
+      'Body is REQUIRED: a JSON array of dotted config key names to delete (schema live-verified 2026-07-23 via 422 probing; no body → 422). There is no bodiless "reset all" — reset = DELETE with every override key.',
     status: 'verified'
   },
 
@@ -356,20 +359,19 @@ export const endpoints: EndpointDef[] = [
   {
     id: 'roles.assign',
     name: 'Assign role to user',
-    description: 'Grant a role to a user in a fleet.',
+    description: 'Grant a role to a user in a fleet — works even if the user has never played in the fleet.',
     category: 'roles',
     method: 'POST',
-    path: '/v1/fleets/:fleetId/users/:userId/roles/:roleId',
-    params: [
-      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
-      { name: 'userId', in: 'path', required: true, example: 'usr_1' },
-      { name: 'roleId', in: 'path', required: true, example: 'rol_1' }
-    ],
+    path: '/v2/fleets/:fleetId/user_roles',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
     requiresAuth: true,
-    permission: 'role:write',
+    permission: 'user_roles:write',
     fleetScoped: true,
-    status: 'unverified',
-    notes: 'Live-probed 2026-07-20: this v1 path is the real route (POST returns 500 on a non-existent user, not 404). The v2 roles/:roleId/users variant 404s.'
+    status: 'verified',
+    requestExample: { username: 'Nova', role_id: 'rol_1', expires_hours: 0 },
+    responseExample: { success: true, user_exists: true },
+    notes:
+      'Live-verified 2026-07-23: POST /v2/fleets/:fleetId/user_roles takes a USERNAME (no id resolution needed) and, unlike the old v1 users/:userId/roles/:roleId route, does NOT require the user to have played in the fleet. Use this by default. Body REQUIRES expires_hours as an INTEGER (omitting it or null both 422). Expiry enforcement looks absent (a 1h grant never auto-removed); we send 0 for no expiry. Responds { success, user_exists } — user_exists:false means no such username (still HTTP 200).'
   },
   {
     id: 'roles.unassign',

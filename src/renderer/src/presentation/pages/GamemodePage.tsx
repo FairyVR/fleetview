@@ -368,7 +368,13 @@ function ConfigEditor({ stationId }: { stationId: string }) {
     setResetting(true)
     setSaveError('')
     try {
-      const res = await api.request({ endpointId: 'station.config.delete', params: { stationId } })
+      // The endpoint requires an explicit key list — there is no bodiless reset-all.
+      const keys = Object.keys(original)
+      if (!keys.length) {
+        setConfirmReset(false)
+        return
+      }
+      const res = await api.request({ endpointId: 'station.config.delete', params: { stationId }, body: keys })
       if (res.ok) {
         setOriginal({})
         setEdited({})

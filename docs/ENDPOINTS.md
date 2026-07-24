@@ -1,8 +1,8 @@
 # FleetView — Discovered API Endpoint Registry
 
-_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-21T02:40:14.687Z._
+_Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-24T02:09:20.944Z._
 
-**32** endpoints registered · **26** verified · **6** unverified.
+**32** endpoints registered · **28** verified · **4** unverified.
 
 > Base URL `https://api.oriondrift.net` · auth header `x-api-key`. See `docs/API-DISCOVERY.md`.
 >
@@ -14,7 +14,7 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-21T02:40:14.6
 | --- | --- | --- | --- | --- | --- |
 | `fleet.list` | GET | `/v2/fleets` | yes | fleet:read | verified |
 | `fleet.stations` | GET | `/v2/fleets/:fleetId/stations` | yes | station:read | verified |
-| `fleet.get` | GET | `/v1/fleets/:fleetId` | yes | fleet:read | unverified |
+| `fleet.get` | GET | `/v1/fleets/:fleetId` | yes | fleet:read | verified |
 | `fleet.update` | PATCH | `/v1/fleets/:fleetId` | yes | fleet:write | unverified |
 | `fleet.config.get` | GET | `/v1/fleets/:fleetId/config` | yes | fleet_config:read | verified |
 | `fleet.config.set` | POST | `/v1/fleets/:fleetId/config` | yes | fleet_config:write | verified |
@@ -29,7 +29,7 @@ _Auto-generated from `src/shared/registry/endpoints.ts` on 2026-07-21T02:40:14.6
 | `roles.create` | POST | `/v1/fleets/:fleetId/roles` | yes | role:write | unverified |
 | `roles.updatePermissions` | PATCH | `/v1/fleets/:fleetId/roles/:roleId/permissions` | yes | role:write | unverified |
 | `roles.delete` | DELETE | `/v1/fleets/:fleetId/roles/:roleId` | yes | role:write | unverified |
-| `roles.assign` | POST | `/v1/fleets/:fleetId/users/:userId/roles/:roleId` | yes | role:write | unverified |
+| `roles.assign` | POST | `/v2/fleets/:fleetId/user_roles` | yes | user_roles:write | verified |
 | `roles.unassign` | DELETE | `/v1/fleets/:fleetId/users/:userId/role/:roleId` | yes | role:write | verified |
 | `user.get` | GET | `/v2/users/:userId` | yes | user_data:read | verified |
 | `player.search` | GET | `/v1/user_search` | yes | user_data:read | verified |
@@ -97,12 +97,12 @@ All fleets the authenticated key can access (used to validate a key).
 
 ### Get fleet (with stations) — `fleet.get`
 
-Fleet detail. The response `fleet.stations[]` is the station list for the fleet.
+Full fleet detail: stations (incl. ip, session_id, version, online, disabled, last_event) and the fleet config object.
 
 - **Method / Path:** `GET /v1/fleets/:fleetId`
 - **Auth required:** yes
 - **Permission scope:** fleet:read
-- **Status:** unverified
+- **Status:** verified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
@@ -110,20 +110,34 @@ Fleet detail. The response `fleet.stations[]` is the station list for the fleet.
 
   ```json
   {
-    "fleet": {
-      "fleet_id": "flt_1",
-      "fleet_name": "Strike",
-      "stations": [
-        {
-          "station_id": "stn_1",
-          "station_name": "Station One",
-          "online": true
-        }
-      ]
+    "fleet_id": "a93461f2-…",
+    "fleet_name": "Strike Tournament",
+    "created": "2026-02-06T21:47:08Z",
+    "stations": [
+      {
+        "station_id": "d27f9911-…",
+        "fleet_id": "a93461f2-…",
+        "session_id": "65289-a2-server-prod-…",
+        "station_name": "Strike_Tourney",
+        "region": "us-east-2",
+        "ip": "82.97.206.98:22740",
+        "version": "65289",
+        "created": "2026-07-16T00:36:21Z",
+        "online": true,
+        "last_event": "2026-07-22T11:34:29Z",
+        "player_count": 0,
+        "disabled": false,
+        "config": null
+      }
+    ],
+    "config": {
+      "is_whitelist": true,
+      "is_public": true,
+      "primary_color": "#000000"
     }
   }
   ```
-- **Notes:** Live probing found /v2/fleets/{id} returns 404; this v1 path is unconfirmed. Prefer fleet.list / fleet.stations.
+- **Notes:** Live-verified 2026-07-22 against the official dashboard (200, session auth): the response is FLAT at the root — no `fleet` wrapper. Stations here include ip/disabled/last_event, which the v2 lists omit. (/v2/fleets/{id} still 404s.)
 
 ### Update fleet — `fleet.update`
 
@@ -136,7 +150,7 @@ Patch fleet-level settings.
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
-- **Notes:** Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API.
+- **Notes:** Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API. The capability is real — the official dashboard has a "Change Fleet Name" admin setting (seen 2026-07-22) — but its exact route/body was not captured.
 
 ## station
 
@@ -266,9 +280,9 @@ Write the station config JSON (also how board textures / gamemode overrides are 
   ```
 - **Notes:** Body is a FLAT dotted-key map — no `config` wrapper — with ALL values as strings, and only the changed keys (partial update). Wrapped/typed/full-blob bodies 422. Verified from the working StrikeTournamentTool bot.
 
-### Reset station config — `station.config.delete`
+### Delete station config keys — `station.config.delete`
 
-Delete/reset the station config override.
+Delete specific station config override keys (per-key delete).
 
 - **Method / Path:** `DELETE /v2/stations/:stationId/config`
 - **Auth required:** yes
@@ -277,6 +291,14 @@ Delete/reset the station config override.
 - **Station-scoped**
 - **Parameters:**
   - `stationId` (path) — required — e.g. `stn_1`
+- **Example request body:**
+
+  ```json
+  [
+    "config.spawnPointSettings.overrideSpawnPoint"
+  ]
+  ```
+- **Notes:** Body is REQUIRED: a JSON array of dotted config key names to delete (schema live-verified 2026-07-23 via 422 probing; no body → 422). There is no bodiless "reset all" — reset = DELETE with every override key.
 
 ## roles
 
@@ -388,18 +410,33 @@ Delete a role from a fleet.
 
 ### Assign role to user — `roles.assign`
 
-Grant a role to a user in a fleet.
+Grant a role to a user in a fleet — works even if the user has never played in the fleet.
 
-- **Method / Path:** `POST /v1/fleets/:fleetId/users/:userId/roles/:roleId`
+- **Method / Path:** `POST /v2/fleets/:fleetId/user_roles`
 - **Auth required:** yes
-- **Permission scope:** role:write
-- **Status:** unverified
+- **Permission scope:** user_roles:write
+- **Status:** verified
 - **Fleet-scoped**
 - **Parameters:**
   - `fleetId` (path) — required — e.g. `flt_1`
-  - `userId` (path) — required — e.g. `usr_1`
-  - `roleId` (path) — required — e.g. `rol_1`
-- **Notes:** Live-probed 2026-07-20: this v1 path is the real route (POST returns 500 on a non-existent user, not 404). The v2 roles/:roleId/users variant 404s.
+- **Example request body:**
+
+  ```json
+  {
+    "username": "Nova",
+    "role_id": "rol_1",
+    "expires_hours": 0
+  }
+  ```
+- **Example response:**
+
+  ```json
+  {
+    "success": true,
+    "user_exists": true
+  }
+  ```
+- **Notes:** Live-verified 2026-07-23: POST /v2/fleets/:fleetId/user_roles takes a USERNAME (no id resolution needed) and, unlike the old v1 users/:userId/roles/:roleId route, does NOT require the user to have played in the fleet. Use this by default. Body REQUIRES expires_hours as an INTEGER (omitting it or null both 422). Expiry enforcement looks absent (a 1h grant never auto-removed); we send 0 for no expiry. Responds { success, user_exists } — user_exists:false means no such username (still HTTP 200).
 
 ### Remove role from user — `roles.unassign`
 

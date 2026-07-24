@@ -4,8 +4,8 @@ import {
   coerceValue,
   gamemodeKey,
   configDiff,
-  gamemodeFieldDefault,
-  parseConfigPatch
+  configRemovedKeys,
+  gamemodeFieldDefault
 } from '../src/renderer/src/lib/stationConfig'
 import { gamemodeDisplayName, gamemodeGroup } from '../src/renderer/src/lib/gamemodes'
 import { boardName } from '../src/renderer/src/lib/boards'
@@ -56,6 +56,13 @@ describe('configDiff', () => {
   })
 })
 
+describe('configRemovedKeys', () => {
+  it('lists keys deleted from the edit (which the POST write cannot express)', () => {
+    expect(configRemovedKeys({ a: 1, gone: 2, also: 3 }, { a: 1 })).toEqual(['gone', 'also'])
+    expect(configRemovedKeys({ a: 1 }, { a: 2, b: 3 })).toEqual([])
+  })
+})
+
 describe('gamemode naming', () => {
   it('maps known ids case-insensitively', () => {
     expect(gamemodeDisplayName('tkb_prime')).toBe('Prime Arena')
@@ -103,28 +110,5 @@ describe('gamemodeKey', () => {
     expect(gamemodeKey('1200_Full_2', 'matchlengthseconds')).toBe(
       'loadedgamemodes.1200_Full_2.modulestate.dashboardconfigoverrides.matchlengthseconds'
     )
-  })
-})
-
-describe('parseConfigPatch', () => {
-  it('stringifies every value into the flat write shape', () => {
-    const r = parseConfigPatch('{"is_whitelist": true, "matchlengthseconds": 300, "team0name": "Red"}')
-    expect('patch' in r && r.patch).toEqual({
-      is_whitelist: 'true',
-      matchlengthseconds: '300',
-      team0name: 'Red'
-    })
-  })
-
-  it('rejects non-JSON, arrays, and empty input', () => {
-    expect('error' in parseConfigPatch('not json')).toBe(true)
-    expect('error' in parseConfigPatch('[1,2,3]')).toBe(true)
-    expect('error' in parseConfigPatch('   ')).toBe(true)
-    expect('error' in parseConfigPatch('{}')).toBe(true)
-  })
-
-  it('rejects nested objects and null (config keys must be flat)', () => {
-    expect('error' in parseConfigPatch('{"a": {"b": 1}}')).toBe(true)
-    expect('error' in parseConfigPatch('{"a": null}')).toBe(true)
   })
 })

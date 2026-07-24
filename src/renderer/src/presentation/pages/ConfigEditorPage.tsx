@@ -17,11 +17,12 @@ import type { Preset } from '@shared/models'
 import { PageHeader, Card, Button, Badge, EmptyState } from '../components/ui'
 import { JsonEditor, JsonDiff, validateJson } from '../components/JsonEditor'
 import { StationScoped } from '../components/StationScoped'
+import { Modal } from '../components/Modal'
 import { PermissionGate } from '../components/PermissionGate'
-import { useSelectionStore } from '../../state/useSelectionStore'
 import { prettyJson } from '../../lib/format'
 import { api } from '../../lib/api'
-import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
+import { useSelectionStore } from '../../state/useSelectionStore'
+import { configDiff, configRemovedKeys, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
 
 /**
  * Raw config workbench for the selected station: live baseline, diff, and a local
@@ -49,6 +50,8 @@ function Workbench({ stationId }: { stationId: string }) {
   const [note, setNote] = useState<{ tone: 'good' | 'bad'; msg: string } | null>(null)
   const [favorites, setFavorites] = useState<Preset[]>([])
   const [favName, setFavName] = useState('')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -67,21 +70,40 @@ function Workbench({ stationId }: { stationId: string }) {
     }
   }, [stationId])
 
-  /** Pull the fleet-level config into the editor so the station can be reset to it (review, then Save). */
-  async function loadFleetConfig() {
-    if (!fleetId) return
-    setLoading(true)
+  /**
+   * Reset the station to fleet defaults: DELETE every override key the editor currently
+   * shows (the endpoint requires an explicit key list — there is no bodiless reset-all),
+   * then seed the editor with the fleet config as the new baseline. Saving with no edits
+   * pushes nothing (station stays override-free); editing a key and saving pushes only
+   * that key as a station override.
+   */
+  async function resetToFleet() {
+    setResetting(true)
     try {
-      const res = await api.request({ endpointId: 'fleet.config.get', params: { fleetId } })
-      if (res.ok) {
-        const cfg = (res.data as { config?: unknown } | null)?.config ?? res.data
-        setText(prettyJson(cfg ?? {}))
-        setNote({ tone: 'good', msg: 'Loaded fleet config — review the diff, then Save to apply.' })
+      const keys = Object.keys(JSON.parse(baseline || '{}') as Record<string, unknown>)
+      if (keys.length) {
+        const res = await api.request({ endpointId: 'station.config.delete', params: { stationId }, body: keys })
+        if (!res.ok) {
+          setNote({ tone: 'bad', msg: res.error?.message ?? `HTTP ${res.status}` })
+          return
+        }
+      }
+      setConfirmReset(false)
+      const fleetRes = fleetId
+        ? await api.request({ endpointId: 'fleet.config.get', params: { fleetId } })
+        : null
+      if (fleetRes?.ok) {
+        const cfg = (fleetRes.data as { config?: unknown } | null)?.config ?? fleetRes.data
+        const pretty = prettyJson(cfg ?? {})
+        setBaseline(pretty)
+        setText(pretty)
+        setNote({ tone: 'good', msg: 'Reset to fleet config — only keys you change get saved as station overrides.' })
       } else {
-        setNote({ tone: 'bad', msg: res.error?.message ?? `HTTP ${res.status}` })
+        setNote({ tone: 'good', msg: 'Station config reset to fleet defaults.' })
+        await load()
       }
     } finally {
-      setLoading(false)
+      setResetting(false)
       setTimeout(() => setNote(null), 3500)
     }
   }
@@ -101,23 +123,32 @@ function Workbench({ stationId }: { stationId: string }) {
 
   async function saveToStation() {
     if (error || !text.trim()) return
-    // POST only the changed keys, flat + stringified — the shape the live API accepts.
-    const patch = configDiff(
-      JSON.parse(baseline || '{}') as Record<string, unknown>,
-      JSON.parse(text) as Record<string, unknown>
-    )
-    if (!Object.keys(patch).length) {
+    // POST changed keys (flat + stringified) and DELETE removed keys — the live API shapes.
+    const base = JSON.parse(baseline || '{}') as Record<string, unknown>
+    const edited = JSON.parse(text) as Record<string, unknown>
+    const patch = configDiff(base, edited)
+    const removed = configRemovedKeys(base, edited)
+    if (!Object.keys(patch).length && !removed.length) {
       setNote({ tone: 'good', msg: 'No changes to save.' })
       setTimeout(() => setNote(null), 2500)
       return
     }
-    const res = await api.request({
-      endpointId: 'station.config.set',
-      params: { stationId, ...CONFIG_WRITE_PARAMS },
-      body: patch
-    })
-    setNote(res.ok ? { tone: 'good', msg: 'Saved to station.' } : { tone: 'bad', msg: res.error?.message ?? `HTTP ${res.status}` })
-    if (res.ok) setBaseline(text)
+    let failure: string | null = null
+    if (removed.length) {
+      const res = await api.request({ endpointId: 'station.config.delete', params: { stationId }, body: removed })
+      if (!res.ok) failure = res.error?.message ?? `HTTP ${res.status}`
+    }
+    if (!failure && Object.keys(patch).length) {
+      const res = await api.request({
+        endpointId: 'station.config.set',
+        params: { stationId, ...CONFIG_WRITE_PARAMS },
+        body: patch
+      })
+      if (!res.ok) failure = res.error?.message ?? `HTTP ${res.status}`
+    }
+    setNote(failure ? { tone: 'bad', msg: failure } : { tone: 'good', msg: 'Saved to station.' })
+    // Reload so baseline reflects true station state.
+    if (!failure) await load()
     setTimeout(() => setNote(null), 2500)
   }
 
@@ -179,13 +210,15 @@ function Workbench({ stationId }: { stationId: string }) {
             <Button onClick={() => void load()} disabled={loading}>
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reload
             </Button>
-            <Button
-              onClick={() => void loadFleetConfig()}
-              disabled={loading || !fleetId}
-              title="Load this fleet's config into the editor — review the diff, then Save to reset the station to it"
-            >
-              <Building2 size={14} /> Reset to fleet config
-            </Button>
+            <PermissionGate scope="station_config:write" hideWhenDenied>
+              <Button
+                onClick={() => setConfirmReset(true)}
+                disabled={loading || resetting}
+                title="Delete every station config override, reverting the station to fleet defaults"
+              >
+                <Building2 size={14} /> Reset to fleet config
+              </Button>
+            </PermissionGate>
             <label className="btn cursor-pointer">
               <Upload size={14} /> Import
               <input type="file" accept=".json" hidden onChange={importFile} />
@@ -248,6 +281,27 @@ function Workbench({ stationId }: { stationId: string }) {
           </div>
         )}
       </Card>
+
+      <Modal
+        open={confirmReset}
+        title="Reset station to fleet config?"
+        onClose={() => setConfirmReset(false)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
+            <Button variant="danger" onClick={() => void resetToFleet()} disabled={resetting}>
+              <Building2 size={13} /> {resetting ? 'Resetting…' : 'Reset to fleet config'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] text-[var(--text-dim)]">
+          This deletes <strong>every</strong> config override for this station — board textures,
+          gamemode overrides, and all other settings — reverting it to fleet defaults. The editor
+          then loads the fleet config so you can tweak from there; only keys you change get saved
+          back as station overrides. This cannot be undone from here.
+        </p>
+      </Modal>
     </div>
   )
 }

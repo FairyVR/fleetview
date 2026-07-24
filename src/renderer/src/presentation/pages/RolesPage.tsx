@@ -8,7 +8,7 @@ import { PermissionGate } from '../components/PermissionGate'
 import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { useAppStore } from '../../state/useAppStore'
-import { loadFleetUsers, loadRoleMembers, type FleetUser } from '../../lib/fleetUsers'
+import { loadRoleMembers, type FleetUser } from '../../lib/fleetUsers'
 
 interface Role {
   id: string
@@ -109,20 +109,25 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
     setAssigning(true)
     setAssignResults(null)
     try {
-      const users = await loadFleetUsers(fleetId)
-      const byName = new Map(users.map((u) => [u.name.toLowerCase(), u]))
       const results: Array<{ name: string; ok: boolean; msg?: string }> = []
       for (const name of wanted) {
-        const user = byName.get(name.toLowerCase())
-        if (!user) {
-          results.push({ name, ok: false, msg: 'no player with that name in this fleet' })
-          continue
-        }
+        // The v2 user_roles endpoint takes the username directly (no id resolution
+        // needed) and works even for users who have never played in this fleet.
+        // It answers { success, user_exists } — user_exists:false means bad name.
+        // expires_hours is a REQUIRED INTEGER (null and omission both 422). Enforcement
+        // was observed absent (a 1-hour grant never auto-removed), so send 0 = no expiry.
         const res = await api.request({
           endpointId: 'roles.assign',
-          params: { fleetId, userId: user.id, roleId: selectedRole }
+          params: { fleetId },
+          body: { username: name, role_id: selectedRole, expires_hours: 0 }
         })
-        results.push({ name, ok: res.ok, msg: res.ok ? undefined : res.error?.message ?? `HTTP ${res.status}` })
+        const exists = (res.data as { user_exists?: boolean } | null)?.user_exists
+        const ok = res.ok && exists !== false
+        results.push({
+          name,
+          ok,
+          msg: ok ? undefined : res.ok ? 'no user with that name exists' : res.error?.message ?? `HTTP ${res.status}`
+        })
       }
       setAssignResults(results)
       if (results.every((r) => r.ok)) setNames('')

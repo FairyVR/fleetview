@@ -78,5 +78,6 @@ export function buildUrl(
   if (leftover) for (const t of leftover) missing.push(t.slice(1))
 
   const qs = query.toString()
-  return { path: qs ? `${path}?${qs}` : path, missing }
+  // A required path param lands in `missing` twice (params loop + leftover-token scan).
+  return { path: qs ? `${path}?${qs}` : path, missing: [...new Set(missing)] }
 }
