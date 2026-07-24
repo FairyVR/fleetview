@@ -23,6 +23,8 @@
     "src/preload/**/*",
     "src/shared/**/*",
     "scripts/**/*",
+    "tests/keyService.test.ts",
+    "tests/apiClient.test.ts",
     "electron.vite.config.ts"
   ]
 }

@@ -4,6 +4,7 @@ import {
   coerceValue,
   gamemodeKey,
   configDiff,
+  configRemovedKeys,
   gamemodeFieldDefault
 } from '../src/renderer/src/lib/stationConfig'
 import { gamemodeDisplayName, gamemodeGroup } from '../src/renderer/src/lib/gamemodes'
@@ -52,6 +53,13 @@ describe('configDiff', () => {
   it('returns empty for no changes and skips undefined values', () => {
     expect(configDiff({ a: 1 }, { a: 1 })).toEqual({})
     expect(configDiff({}, { a: undefined as unknown as string })).toEqual({})
+  })
+})
+
+describe('configRemovedKeys', () => {
+  it('lists keys deleted from the edit (which the POST write cannot express)', () => {
+    expect(configRemovedKeys({ a: 1, gone: 2, also: 3 }, { a: 1 })).toEqual(['gone', 'also'])
+    expect(configRemovedKeys({ a: 1 }, { a: 2, b: 3 })).toEqual([])
   })
 })
 

@@ -2,6 +2,10 @@ import { app, BrowserWindow, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { appendFileSync } from 'node:fs'
 import { registerIpc } from './ipc'
+import { settingsStore } from './stores'
+
+/** The only origin the window is ever allowed to load (dev server in dev, packaged files in prod). */
+const APP_ORIGIN = process.env.ELECTRON_RENDERER_URL ?? 'file://'
 
 /** Surface renderer crashes/load failures to the main log (and an optional diag file). */
 function attachDiagnostics(win: BrowserWindow): void {
@@ -59,15 +63,25 @@ function createWindow(): void {
   mainWindow.webContents.on('before-input-event', (_e, input) => {
     if (input.type !== 'keyDown') return
     if (input.key === 'F12' || (input.control && input.shift && input.key.toUpperCase() === 'I')) {
-      mainWindow?.webContents.toggleDevTools()
+      // DevTools drives the full window.api surface; keep it out of packaged builds unless
+      // the operator explicitly opts in via the Developer Mode setting.
+      if (process.env.ELECTRON_RENDERER_URL || settingsStore.get('developerMode')) {
+        mainWindow?.webContents.toggleDevTools()
+      }
     } else if (input.key === 'F5' || (input.control && input.key.toUpperCase() === 'R')) {
       mainWindow?.webContents.reload()
     }
   })
 
-  // Open external links in the OS browser, never in-app.
+  // Never navigate the app window itself to a remote origin — that would hand the preload's
+  // window.api (keys, requests) to attacker-controlled page code and escape the local CSP.
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith(APP_ORIGIN)) e.preventDefault()
+  })
+
+  // Open external links in the OS browser, never in-app — and only real web links.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url)
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
 

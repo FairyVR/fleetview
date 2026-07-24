@@ -87,7 +87,12 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
 
   async function handleBan() {
     if (!banPlayerId.trim() || !banReason.trim()) return
-    const durationHours = parseInt(banHours, 10) || 24
+    const durationHours = parseInt(banHours, 10)
+    if (!Number.isFinite(durationHours) || durationHours < 1) {
+      setBanResult({ ok: false, error: 'Duration must be a whole number of hours ≥ 1.' })
+      setTimeout(() => setBanResult(null), 3000)
+      return
+    }
     const resolved = await resolveUserId(fleetId, banPlayerId)
     if ('error' in resolved) {
       setBanResult({ ok: false, error: resolved.error })
@@ -224,22 +229,38 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
                 const bans = asBans(raw)
                 return bans.length > 0 ? (
                   <div className="space-y-2.5 max-h-[68vh] overflow-y-auto pr-1">
-                    {bans.slice(0, 50).map((ban) => (
-                      <div key={ban.id} className="text-[12.5px] p-3 bg-[var(--bg)] rounded-lg border border-[var(--border-soft)]">
+                    {bans.slice(0, 50).map((ban) => {
+                      const expired = ban.expiresAt != null && ban.expiresAt < Date.now()
+                      const inactive = ban.revoked || expired
+                      return (
+                      <div
+                        key={ban.id}
+                        className={`text-[12.5px] p-3 bg-[var(--bg)] rounded-lg border border-[var(--border-soft)] ${inactive ? 'opacity-55' : ''}`}
+                      >
                         <div className="flex items-center justify-between gap-3 mb-1.5">
-                          <Badge tone="bad">{ban.username ?? ban.userId}</Badge>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Badge tone={inactive ? 'neutral' : 'bad'}>{ban.username ?? ban.userId}</Badge>
+                            {ban.revoked ? (
+                              <Badge tone="good">revoked</Badge>
+                            ) : expired ? (
+                              <Badge tone="neutral">expired</Badge>
+                            ) : (
+                              <Badge tone="warn">active</Badge>
+                            )}
+                          </div>
                           {showIds && ban.username && (
                             <span className="mono text-[11px] text-[var(--text-faint)]">{ban.userId}</span>
                           )}
                           {ban.expiresAt && (
                             <span className="text-[var(--text-dim)] text-[11px] shrink-0">
-                              expires {ts(ban.expiresAt)}
+                              {expired ? 'expired' : 'expires'} {ts(ban.expiresAt)}
                             </span>
                           )}
                         </div>
                         <p className="text-[var(--text-dim)]">{ban.reason}</p>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <EmptyState title="No bans" />

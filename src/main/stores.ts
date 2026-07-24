@@ -13,6 +13,7 @@ export interface Settings {
   theme: ThemeId
   developerMode: boolean
   showIds: boolean
+  dangerZone: boolean
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -22,7 +23,8 @@ const DEFAULT_SETTINGS: Settings = {
   maxRetries: 2,
   theme: 'dark',
   developerMode: false,
-  showIds: false
+  showIds: false,
+  dangerZone: false
 }
 
 export const settingsStore = new Store<Settings>({

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Search, Lock, Shield } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
@@ -62,39 +62,57 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
   const [loadingBans, setLoadingBans] = useState(false)
   const [profile, setProfile] = useState<unknown>(null)
   const [playerRoles, setPlayerRoles] = useState<FleetRole[] | null>(null)
+  const [banResult, setBanResult] = useState<{ ok: boolean; message: string } | null>(null)
+  // Which player the open modal is for: guards the several async loads below so a slower
+  // response for a previously-opened player can't land under the currently-open one.
+  const activeIdRef = useRef<string | null>(null)
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault() // filtering is client-side over the loaded list
   }
 
   async function openDetail(player: Player) {
+    activeIdRef.current = player.id
     setSelectedPlayer(player)
     setProfile(null)
     setPlayerRoles(null)
+    setBanResult(null)
+    setBanHistory([])
     setDetailOpen(true)
     setLoadingBans(true)
+    const isCurrent = () => activeIdRef.current === player.id
     // Roles aren't on the player payload (API returns roles:null), so cross-reference role members.
-    void loadUserRoles(fleetId, player.id).then(setPlayerRoles)
+    void loadUserRoles(fleetId, player.id)
+      .then((roles) => isCurrent() && setPlayerRoles(roles))
+      .catch(() => isCurrent() && setPlayerRoles([]))
     // Global profile (user.get is the confirmed v2 endpoint; fleet player lists may 404).
     void api
       .request({ endpointId: 'user.get', params: { userId: player.id } })
       .then((res) => {
-        if (res.ok) setProfile(res.data)
+        if (isCurrent() && res.ok) setProfile(res.data)
       })
+      .catch(() => {})
     try {
       const res = await api.request({
         endpointId: 'player.bans',
         params: { fleetId, userId: player.id }
       })
-      setBanHistory(asBans(res.data))
+      if (isCurrent()) setBanHistory(asBans(res.data))
+    } catch {
+      /* leave ban history empty */
     } finally {
-      setLoadingBans(false)
+      if (isCurrent()) setLoadingBans(false)
     }
   }
 
   async function handleBan() {
     if (!selectedPlayer || !banReason.trim()) return
-    const durationHours = parseInt(banHours, 10) || 24
+    const durationHours = parseInt(banHours, 10)
+    if (!Number.isFinite(durationHours) || durationHours < 1) {
+      setBanResult({ ok: false, message: 'Duration must be a whole number of hours ≥ 1.' })
+      return
+    }
+    setBanResult(null)
     const res = await api.request({
       endpointId: 'moderation.ban',
       params: { fleetId, userId: selectedPlayer.id },
@@ -107,6 +125,8 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
       setBanReason('')
       setBanHours('24')
       setDetailOpen(false)
+    } else {
+      setBanResult({ ok: false, message: res.error?.message ?? 'Ban failed.' })
     }
   }
 
@@ -262,6 +282,9 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
                     <Button variant="danger" onClick={() => void handleBan()}>
                       <Lock size={13} /> Ban
                     </Button>
+                    {banResult && !banResult.ok && (
+                      <p className="text-[12px] text-[var(--danger,#f87171)]">{banResult.message}</p>
+                    )}
                   </div>
                 </Card>
               </PermissionGate>

@@ -84,7 +84,8 @@ export const endpoints: EndpointDef[] = [
   {
     id: 'fleet.get',
     name: 'Get fleet (with stations)',
-    description: 'Fleet detail. The response `fleet.stations[]` is the station list for the fleet.',
+    description:
+      'Full fleet detail: stations (incl. ip, session_id, version, online, disabled, last_event) and the fleet config object.',
     category: 'fleet',
     method: 'GET',
     path: '/v1/fleets/:fleetId',
@@ -93,14 +94,31 @@ export const endpoints: EndpointDef[] = [
     permission: 'fleet:read',
     fleetScoped: true,
     responseExample: {
-      fleet: {
-        fleet_id: 'flt_1',
-        fleet_name: 'Strike',
-        stations: [{ station_id: 'stn_1', station_name: 'Station One', online: true }]
-      }
+      fleet_id: 'a93461f2-…',
+      fleet_name: 'Strike Tournament',
+      created: '2026-02-06T21:47:08Z',
+      stations: [
+        {
+          station_id: 'd27f9911-…',
+          fleet_id: 'a93461f2-…',
+          session_id: '65289-a2-server-prod-…',
+          station_name: 'Strike_Tourney',
+          region: 'us-east-2',
+          ip: '82.97.206.98:22740',
+          version: '65289',
+          created: '2026-07-16T00:36:21Z',
+          online: true,
+          last_event: '2026-07-22T11:34:29Z',
+          player_count: 0,
+          disabled: false,
+          config: null
+        }
+      ],
+      config: { is_whitelist: true, is_public: true, primary_color: '#000000' }
     },
-    status: 'unverified',
-    notes: 'Live probing found /v2/fleets/{id} returns 404; this v1 path is unconfirmed. Prefer fleet.list / fleet.stations.'
+    status: 'verified',
+    notes:
+      'Live-verified 2026-07-22 against the official dashboard (200, session auth): the response is FLAT at the root — no `fleet` wrapper. Stations here include ip/disabled/last_event, which the v2 lists omit. (/v2/fleets/{id} still 404s.)'
   },
   {
     id: 'fleet.update',
@@ -114,7 +132,8 @@ export const endpoints: EndpointDef[] = [
     permission: 'fleet:write',
     fleetScoped: true,
     status: 'unverified',
-    notes: 'Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API.'
+    notes:
+      'Root fleet resource 404s on v2; v1 PATCH unconfirmed against the live API. The capability is real — the official dashboard has a "Change Fleet Name" admin setting (seen 2026-07-22) — but its exact route/body was not captured.'
   },
   {
     id: 'fleet.config.get',
@@ -229,8 +248,8 @@ export const endpoints: EndpointDef[] = [
   },
   {
     id: 'station.config.delete',
-    name: 'Reset station config',
-    description: 'Delete/reset the station config override.',
+    name: 'Delete station config keys',
+    description: 'Delete specific station config override keys (per-key delete).',
     category: 'config',
     method: 'DELETE',
     path: '/v2/stations/:stationId/config',
@@ -238,6 +257,9 @@ export const endpoints: EndpointDef[] = [
     requiresAuth: true,
     permission: 'station_config:write',
     stationScoped: true,
+    requestExample: ['config.spawnPointSettings.overrideSpawnPoint'],
+    notes:
+      'Body is REQUIRED: a JSON array of dotted config key names to delete (schema live-verified 2026-07-23 via 422 probing; no body → 422). There is no bodiless "reset all" — reset = DELETE with every override key.',
     status: 'verified'
   },
 
@@ -337,20 +359,19 @@ export const endpoints: EndpointDef[] = [
   {
     id: 'roles.assign',
     name: 'Assign role to user',
-    description: 'Grant a role to a user in a fleet.',
+    description: 'Grant a role to a user in a fleet — works even if the user has never played in the fleet.',
     category: 'roles',
     method: 'POST',
-    path: '/v1/fleets/:fleetId/users/:userId/roles/:roleId',
-    params: [
-      { name: 'fleetId', in: 'path', required: true, example: 'flt_1' },
-      { name: 'userId', in: 'path', required: true, example: 'usr_1' },
-      { name: 'roleId', in: 'path', required: true, example: 'rol_1' }
-    ],
+    path: '/v2/fleets/:fleetId/user_roles',
+    params: [{ name: 'fleetId', in: 'path', required: true, example: 'flt_1' }],
     requiresAuth: true,
-    permission: 'role:write',
+    permission: 'user_roles:write',
     fleetScoped: true,
-    status: 'unverified',
-    notes: 'Live-probed 2026-07-20: this v1 path is the real route (POST returns 500 on a non-existent user, not 404). The v2 roles/:roleId/users variant 404s.'
+    status: 'verified',
+    requestExample: { username: 'Nova', role_id: 'rol_1', expires_hours: 0 },
+    responseExample: { success: true, user_exists: true },
+    notes:
+      'Live-verified 2026-07-23: POST /v2/fleets/:fleetId/user_roles takes a USERNAME (no id resolution needed) and, unlike the old v1 users/:userId/roles/:roleId route, does NOT require the user to have played in the fleet. Use this by default. Body REQUIRES expires_hours as an INTEGER (omitting it or null both 422). Expiry enforcement looks absent (a 1h grant never auto-removed); we send 0 for no expiry. Responds { success, user_exists } — user_exists:false means no such username (still HTTP 200).'
   },
   {
     id: 'roles.unassign',

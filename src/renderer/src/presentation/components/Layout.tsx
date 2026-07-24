@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import badge from '../../assets/founder_badge.png'
 import wordmark from '../../assets/od-wordmark.png'
 import { useEffect, type ReactNode } from 'react'
-import { NAV } from '../nav'
+import { NAV, DANGER_NAV } from '../nav'
 import { cn } from '../../lib/cn'
 import { useAppStore } from '../../state/useAppStore'
 import { StatusDot } from './ui'
@@ -63,7 +63,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2.5">
-          {NAV.map((group) => (
+          {[...NAV, ...(settings?.dangerZone ? [DANGER_NAV] : [])].map((group) => (
             <div key={group.title} className="mb-4">
               <div className="text-[10.5px] uppercase tracking-wider text-[var(--text-faint)] px-2.5 mb-1.5">
                 {group.title}

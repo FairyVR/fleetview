@@ -18,7 +18,9 @@ function asFleets(data: unknown): Fleet[] {
     description: f.description as string | undefined,
     region: f.region as string | undefined,
     stationCount: Array.isArray(f.stations) ? f.stations.length : (f.station_count as number | undefined),
-    permissionLevel: Array.isArray(f.permissions) ? (f.permissions as string[]).join(', ') : undefined,
+    permissionLevel: Array.isArray(f.permissions)
+      ? (f.permissions as string[]).includes('admin') ? 'admin' : (f.permissions as string[]).join(', ')
+      : undefined,
     raw: f
   }))
 }
@@ -40,8 +42,11 @@ export default function FleetPage() {
   const navigate = useNavigate()
 
   // Probed scopes beyond the fleet:read baseline = the key actually works in this fleet.
-  const accessScopes = (fleetId: string): string[] =>
-    (grants[fleetId] ?? []).filter((s) => s !== 'fleet:read')
+  const accessScopes = (fleetId: string): string[] => {
+    const scopes = grants[fleetId] ?? []
+    // admin = all scopes; showing anything else alongside it is noise
+    return scopes.includes('admin') ? ['admin'] : scopes.filter((s) => s !== 'fleet:read')
+  }
 
   function open(f: Fleet) {
     selectFleet(f.id, f.name)
@@ -57,14 +62,15 @@ export default function FleetPage() {
       />
       <RequestResult response={response} loading={loading} onRetry={() => void run()}>
         {(raw) => {
-          // Only list fleets the key can actually work in (station:read or admin).
-          // If nothing has been discovered yet, show everything — never deny on unknown.
-          const discovered = Object.keys(grants).length > 0
+          // fleet.list already returns only fleets the key can reach, and probed grants are
+          // advisory (a transient probe failure must never HIDE a fleet — that was the old
+          // bug). So show every returned fleet; just sort the ones with confirmed station
+          // access to the top and badge the rest as unprobed.
           const usable = (id: string): boolean =>
             (grants[id] ?? []).some((s) => s === 'station:read' || s === 'admin')
-          const fleets = asFleets(raw)
-            .filter((f) => !discovered || usable(f.id))
-            .sort((a, b) => accessScopes(b.id).length - accessScopes(a.id).length)
+          const fleets = asFleets(raw).sort(
+            (a, b) => Number(usable(b.id)) - Number(usable(a.id))
+          )
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {fleets.map((f) => (
@@ -86,8 +92,10 @@ export default function FleetPage() {
                     {f.region && <Badge>{regionLabel(f.region)}</Badge>}
                     {f.stationCount != null && <Badge tone="accent">{f.stationCount} stations</Badge>}
                     {f.permissionLevel && <Badge tone="good">{f.permissionLevel}</Badge>}
-                    {accessScopes(f.id).length > 0 && (
+                    {accessScopes(f.id).length > 0 ? (
                       <Badge tone="good">access · {accessScopes(f.id).join(', ')}</Badge>
+                    ) : (
+                      Object.keys(grants).length > 0 && <Badge tone="neutral">access not probed</Badge>
                     )}
                   </div>
                 </button>

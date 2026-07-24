@@ -16,6 +16,8 @@ export function classifyKey(key: string): KeyClass {
   // LE strings aren't human-editable; colors can't be changed per station;
   // board URLs belong to the Board Manager.
   if (/^CustomGamemodes\./i.test(key)) return { kind: 'hidden' }
+  // PushOffSpeed netvars are edited only from the Danger Zone System page.
+  if (/^pushoffspeed(key|value)[1-4]$/i.test(key)) return { kind: 'hidden' }
   if (key === 'primary_color' || key === 'secondary_color') return { kind: 'hidden' }
   if (key.startsWith('config.stationConfig.BoardTextureUrl')) return { kind: 'hidden' }
   const m = GM_RE.exec(key)
@@ -56,6 +58,18 @@ export function gamemodeKey(gm: string, field: string): string {
  * changed keys, with these query params. Anything else 422s.
  */
 export const CONFIG_WRITE_PARAMS = { include_fleet_config: true, include_event_config: false }
+
+/**
+ * Keys present in the original config but missing from the edit. The POST write is a
+ * partial update and cannot delete keys — callers must send these to the DELETE
+ * endpoint (`station.config.delete`, body = array of key names) instead.
+ */
+export function configRemovedKeys(
+  original: Record<string, unknown>,
+  edited: Record<string, unknown>
+): string[] {
+  return Object.keys(original).filter((k) => !(k in edited))
+}
 
 export function configDiff(
   original: Record<string, unknown>,

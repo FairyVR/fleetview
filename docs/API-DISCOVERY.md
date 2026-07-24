@@ -117,19 +117,73 @@ Verified against the StrikeTournamentTool Discord bot, which writes this endpoin
 production. FleetView centralizes the shape in `configDiff()`/`CONFIG_WRITE_PARAMS`
 (`src/renderer/src/lib/stationConfig.ts`).
 
+**Deleting keys** (2026-07-23, schema live-verified by 422 probing):
+`DELETE /v2/stations/{station_id}/config` REQUIRES a body — a JSON array of dotted
+config key names to delete (`["config.spawnPointSettings.overrideSpawnPoint"]`).
+No body / wrong type → 422. There is no bodiless "reset all"; a full reset sends
+every current override key. Per-key delete is how editor key-removals are saved.
+
 ## Structural gotchas
 
 - **Stations come from the fleet list** (`GET /v2/fleets?include_stations=true` →
-  `items[].stations[]`) or `GET /v2/fleets/{fleet_id}/stations`. The v1 fleet-detail route is
-  unconfirmed (`/v2/fleets/{id}` 404s).
+  `items[].stations[]`), `GET /v2/fleets/{fleet_id}/stations`, or the fleet detail
+  `GET /v1/fleets/{fleet_id}` — live-verified 2026-07-22 via the logged-in dashboard. The v1
+  detail response is FLAT at the root (`fleet_id`, `fleet_name`, `stations[]`, `config{}` — no
+  `fleet` wrapper) and its stations include `ip`, `disabled`, and `last_event`, which the v2
+  lists omit. (`/v2/fleets/{id}` still 404s.)
 - **Board textures and gamemode overrides are not endpoints.** They are keys inside the
   station config object (`BoardTextureUrl0`, …) read/written via
   `GET|POST /v2/stations/{station_id}/config`.
-- **There is no kick endpoint** and **no match-history endpoint** in the dashboard API.
+- **Kick exists in the product but its endpoint is uncaptured.** The dashboard's Players page
+  says admins can "kick players", and the `user_kick` scope is real (assigned to live roles) —
+  but no kick route was found in the client bundle or observed on the wire (2026-07-22 walk;
+  the SvelteKit server does most API calls server-side, invisible to the browser). Probe before
+  building UI. There is still **no match-history endpoint** — the dashboard's Match History
+  page renders `gamemode_stopped` server events, same as FleetView.
+- **Role assignment: use `POST /v2/fleets/{fleet_id}/user_roles`** (body
+  `{ username, role_id, expires_hours }`, scope `user_roles:write`; `expires_hours` is
+  **required and must be an integer** — omitting it 422s "Field required", `null` 422s
+  "Input should be a valid integer". We send `0` for "no expiry"; NOTE enforcement looks
+  absent anyway — a 1-hour grant was observed to NOT auto-remove the role).
+  Live-verified 2026-07-23: it takes a
+  **username** (no user-id resolution needed) and assigns the role even to a user who has
+  **never played in the fleet**, which the old
+  `POST /v1/fleets/{fleet_id}/users/{user_id}/roles/{role_id}` route refused. Default to it.
+  Responds `{ success, user_exists }` — a garbage username still returns HTTP 200 with
+  `user_exists: false`, so check that flag, not the status code. (Unassign still uses the
+  v1 `DELETE .../role/{role_id}` route.)
 - Field names are `snake_case`: `fleet_id`, `fleet_name`, `station_id`, `station_name`,
   `role_id`, `role_name`, `permissions[]`, `user_id`, `ban_id`.
 - Versions are mixed per route (`/v1`, `/v2`, `/v3`) — copy them exactly.
 - Use `fleet_id: "global"` for global roles.
+
+## Semantics learned from the logged-in dashboard (2026-07-22 walk)
+
+A full walk of `dashboard.oriondrift.net` (v0.8.4) while signed in documented what the raw
+config keys and payloads *mean*:
+
+- **Fleet config known keys** (fleet-level, written via `POST /v1/fleets/{id}/config`):
+  `is_public` (off = "unlisted" — stations only findable by exact-name search in game),
+  `is_whitelist` (allowlist-only; players need `fleet:join`), `primary_color` /
+  `secondary_color` (hex), fleet description + logo URL fields,
+  `config.gateKeeperVolumes.*` (VIP space locks: Circuit Lounge, Driftplex, Fieldhouse,
+  Dave's Office — office entry requires the `key_holder_office` permission),
+  `config.spawnPointSettings.*` (spawn override), `CustomGamemodes.<Name>`
+  (packed string: `1;c;g;<GUID>;;<version-or-tag>`).
+- **Reports shape** (per-player views on the dashboard): `report_id`, reported player
+  (id + name), `reported_by` (id + name), `reason` (categories seen: Cheating, Verbal Abuse,
+  Hate Speech, Exploiting, Breaking Community Rules), free-text `comments` (editable after
+  filing), `created_at`, `last_updated`.
+- **Scheduled fleet events** have create/modify UI (title, description, start time, duration,
+  recurring) — so writes exist beyond the read-only `GET /v2/fleets/{id}/events` in the
+  registry; routes uncaptured (SSR).
+- **Match History** is station-scoped and renders per-player telemetry from
+  `gamemode_stopped` events: OS version, device type, client FPS, MI, packet loss in/out,
+  bandwidth in/out, jitter, per-player duration, plus server frame stats, scores, and
+  "Reason for Stop" (e.g. `team1 match win` — the winner is named here, not per-player).
+- **Account page** (`/account`) shows API key self-service (create/revoke, expiry), active
+  session keys, and the account's **explicit per-fleet permission grants** — so an
+  authoritative "my permissions" source exists server-side (route uncaptured, SSR).
 
 ## Adding an endpoint
 

@@ -239,7 +239,7 @@ export default function KeysPage() {
           </Field>
           <p className="text-[12px] text-[var(--text-faint)]">
             The secret is encrypted immediately and is never displayed or sent anywhere except as
-            the Authorization header on requests you make.
+            the x-api-key header on requests you make.
           </p>
         </div>
       </Modal>

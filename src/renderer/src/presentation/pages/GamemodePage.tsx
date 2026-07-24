@@ -8,6 +8,7 @@ import { PageHeader, Card, Button, Badge } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
+import { Modal } from '../components/Modal'
 import {
   classifyKey,
   PINNED_KEYS,
@@ -221,6 +222,9 @@ function ConfigEditor({ stationId }: { stationId: string }) {
   const [selectedGms, setSelectedGms] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [lastSave, setLastSave] = useState('')
+  const [saveError, setSaveError] = useState('')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   // Fleet users + roles power the whitelist picker; loaded once per fleet.
   const fleetId = useSelectionStore((s) => s.fleetId)
@@ -341,6 +345,7 @@ function ConfigEditor({ stationId }: { stationId: string }) {
     const patch = configDiff(original, edited)
     if (!Object.keys(patch).length) return
     setSaving(true)
+    setSaveError('')
     try {
       const res = await api.request({
         endpointId: 'station.config.set',
@@ -351,6 +356,8 @@ function ConfigEditor({ stationId }: { stationId: string }) {
         setLastSave('config')
         setTimeout(() => setLastSave(''), 1500)
         setOriginal(edited)
+      } else {
+        setSaveError(res.error?.message ?? 'Save failed.')
       }
     } finally {
       setSaving(false)
@@ -358,10 +365,25 @@ function ConfigEditor({ stationId }: { stationId: string }) {
   }
 
   async function resetConfig() {
-    const res = await api.request({ endpointId: 'station.config.delete', params: { stationId } })
-    if (res.ok) {
-      setOriginal({})
-      setEdited({})
+    setResetting(true)
+    setSaveError('')
+    try {
+      // The endpoint requires an explicit key list — there is no bodiless reset-all.
+      const keys = Object.keys(original)
+      if (!keys.length) {
+        setConfirmReset(false)
+        return
+      }
+      const res = await api.request({ endpointId: 'station.config.delete', params: { stationId }, body: keys })
+      if (res.ok) {
+        setOriginal({})
+        setEdited({})
+        setConfirmReset(false)
+      } else {
+        setSaveError(res.error?.message ?? 'Reset failed.')
+      }
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -415,6 +437,7 @@ function ConfigEditor({ stationId }: { stationId: string }) {
         </Button>
         {isDirty && <Badge tone="warn">unsaved changes</Badge>}
         {lastSave && <Badge tone="good">saved</Badge>}
+        {saveError && <Badge tone="bad">{saveError}</Badge>}
         <div className="flex-1" />
         <PermissionGate scope="station_config:write">
           <Button variant="primary" onClick={() => void saveConfig()} disabled={!isDirty || saving}>
@@ -422,11 +445,32 @@ function ConfigEditor({ stationId }: { stationId: string }) {
           </Button>
         </PermissionGate>
         <PermissionGate scope="station_config:write" hideWhenDenied>
-          <Button variant="danger" onClick={() => void resetConfig()}>
+          <Button variant="danger" onClick={() => setConfirmReset(true)}>
             <RotateCcw size={13} /> Reset All
           </Button>
         </PermissionGate>
       </div>
+
+      <Modal
+        open={confirmReset}
+        title="Reset entire station config?"
+        onClose={() => setConfirmReset(false)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
+            <Button variant="danger" onClick={() => void resetConfig()} disabled={resetting}>
+              <RotateCcw size={13} /> {resetting ? 'Resetting…' : 'Reset all config'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] text-[var(--text-dim)]">
+          This deletes <strong>every</strong> config override for this station — board textures,
+          gamemode overrides, and all other settings — reverting it to fleet defaults. This cannot
+          be undone from here.
+        </p>
+        {saveError && <p className="text-[12px] text-[var(--bad)] mt-3">{saveError}</p>}
+      </Modal>
 
       <RequestResult response={response} loading={loading} onRetry={() => void run()}>
         {() => (

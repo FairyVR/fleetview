@@ -91,6 +91,47 @@ function extractFleets(data: unknown): Record<string, unknown>[] {
 const fleetIdOf = (f: Record<string, unknown>): string | undefined =>
   [f.fleet_id, f.fleetId, f.id].find((v) => typeof v === 'string') as string | undefined
 
+/** Keys are JWTs; the payload names the owning user when the key is user-issued. */
+export function jwtUserId(secret: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(secret.split('.')[1], 'base64url').toString())
+    const id = payload.user_id ?? payload.sub ?? payload.uid
+    return id != null ? String(id) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Read the key owner's roles in a fleet and aggregate their permission strings — the
+ * authoritative grant list, no probing needed. Returns null when roles aren't readable
+ * or the user holds none, so the caller falls back to endpoint probes.
+ * ponytail: N+1 members calls (one per role); replace with a per-user roles endpoint if one appears.
+ */
+async function roleScopes(keyId: string, fleetId: string, userId: string): Promise<string[] | null> {
+  const rolesRes = await executeRequest({ endpointId: 'roles.list', keyId, params: { fleetId } })
+  if (!rolesRes.ok) return null
+  const rolesArr = (rolesRes.data as { roles?: unknown[] } | null)?.roles ?? rolesRes.data
+  if (!Array.isArray(rolesArr)) return null
+
+  const scopes = new Set(['fleet:read', 'role:read'])
+  let heldAny = false
+  await Promise.all(
+    (rolesArr as Record<string, unknown>[]).map(async (role) => {
+      const roleId = String(role.role_id ?? role.id ?? '')
+      if (!roleId) return
+      const m = await executeRequest({ endpointId: 'roles.members', keyId, params: { fleetId, roleId } })
+      const d = m.data as { users?: unknown[]; items?: unknown[] } | null
+      const members = (Array.isArray(m.data) ? m.data : d?.users ?? d?.items ?? []) as Record<string, unknown>[]
+      if (m.ok && members.some((u) => String(u?.user_id ?? u?.id ?? '') === userId)) {
+        heldAny = true
+        if (Array.isArray(role.permissions)) role.permissions.forEach((p) => scopes.add(String(p)))
+      }
+    })
+  )
+  return heldAny ? [...scopes] : null
+}
+
 /**
  * Confirm the key authenticates. There is no /me endpoint on this API, so the fleet list
  * (the lightest authenticated call) doubles as the identity/connectivity probe.
@@ -152,23 +193,33 @@ export async function discoverPermissions(keyId: string): Promise<PermissionSet>
   if (explicit) {
     perms = { grants: explicit, raw: res.data, discoveredAt: Date.now(), source: 'explicit' }
   } else if (fleetIds.length) {
-    // Service keys get no scope lists back — probe read endpoints per fleet instead.
-    // 200 confirms the scope; anything else stays silent. Probed grants are advisory
-    // (source 'probed') and NEVER pre-flight deny: writes are unprobeable.
+    // Service keys get no scope lists back. Best source: the key owner's roles, whose
+    // permission arrays ARE the grant list. When roles aren't readable (or the JWT names
+    // no user), fall back to probing read endpoints — 200 confirms the scope; anything
+    // else stays silent. Either way grants are advisory (source 'probed') and NEVER
+    // pre-flight deny: writes are unprobeable.
     const grants: Record<string, string[]> = Object.fromEntries(
       fleetIds.map((id) => [id, ['fleet:read']])
     )
+    const userId = jwtUserId(readSecret(keyId) ?? '')
     const probes: Array<{ endpointId: string; scope: string }> = [
       { endpointId: 'fleet.stations', scope: 'station:read' },
       { endpointId: 'moderation.bans', scope: 'user_data:read' }
     ]
     await Promise.allSettled(
-      fleetIds.flatMap((fleetId) =>
-        probes.map(async ({ endpointId, scope }) => {
-          const r = await executeRequest({ endpointId, keyId, params: { fleetId } })
-          if (r.ok) grants[fleetId].push(scope)
-        })
-      )
+      fleetIds.map(async (fleetId) => {
+        const fromRoles = userId ? await roleScopes(keyId, fleetId, userId).catch(() => null) : null
+        if (fromRoles) {
+          grants[fleetId] = fromRoles
+          return
+        }
+        await Promise.allSettled(
+          probes.map(async ({ endpointId, scope }) => {
+            const r = await executeRequest({ endpointId, keyId, params: { fleetId } })
+            if (r.ok) grants[fleetId].push(scope)
+          })
+        )
+      })
     )
     // Keep scopes confirmed by earlier deep verification (verifyFleetAccess) — this cheap
     // 2-probe pass must widen knowledge, never erase it. Fleets gone from the list drop out.

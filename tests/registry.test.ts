@@ -59,9 +59,16 @@ describe('buildUrl', () => {
   })
 
   it('substitutes multiple path params (fleet + user + role)', () => {
+    const unassign = getEndpoint('roles.unassign') as EndpointDef
+    const { path, missing } = buildUrl(unassign, { fleetId: 'flt_1', userId: 'usr_1', roleId: 'rol_1' })
+    expect(path).toBe('/v1/fleets/flt_1/users/usr_1/role/rol_1')
+    expect(missing).toEqual([])
+  })
+
+  it('roles.assign uses the v2 user_roles route (body-based, works for users outside the fleet)', () => {
     const assign = getEndpoint('roles.assign') as EndpointDef
-    const { path, missing } = buildUrl(assign, { fleetId: 'flt_1', userId: 'usr_1', roleId: 'rol_1' })
-    expect(path).toBe('/v1/fleets/flt_1/users/usr_1/roles/rol_1')
+    const { path, missing } = buildUrl(assign, { fleetId: 'flt_1' })
+    expect(path).toBe('/v2/fleets/flt_1/user_roles')
     expect(missing).toEqual([])
   })
 })
@@ -131,9 +138,19 @@ describe('registry integrity (real Orion Drift API)', () => {
   })
 
   it('marks paths whose v2 equivalents 404d as unverified', () => {
-    for (const id of ['fleet.get', 'fleet.update', 'roles.create']) {
+    // fleet.get graduated: live-verified 2026-07-22 via the official dashboard (see its notes).
+    for (const id of ['fleet.update', 'roles.create']) {
       expect((getEndpoint(id) as EndpointDef).status, id).toBe('unverified')
     }
+  })
+
+  it('keeps fleet.get verified with its real (unwrapped) response shape', () => {
+    const e = getEndpoint('fleet.get') as EndpointDef
+    expect(e.status).toBe('verified')
+    expect(e.path).toBe('/v1/fleets/:fleetId')
+    // The live response is flat at the root — no `fleet` wrapper (the old assumed shape).
+    expect(e.responseExample).not.toHaveProperty('fleet')
+    expect(e.responseExample).toHaveProperty('stations')
   })
 
   it('keeps live-verified 2026-07-18 endpoints verified', () => {

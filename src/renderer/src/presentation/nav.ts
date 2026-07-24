@@ -5,6 +5,7 @@ import {
   Gamepad2,
   Image,
   Users,
+  UserSearch,
   Shield,
   Gavel,
   Activity,
@@ -16,6 +17,7 @@ import {
   ScrollText,
   KeyRound,
   Settings,
+  AlertTriangle,
   type LucideIcon
 } from 'lucide-react'
 
@@ -45,6 +47,7 @@ export const NAV: NavGroup[] = [
     title: 'Community',
     items: [
       { to: '/players', label: 'Player Manager', icon: Users },
+      { to: '/lookup', label: 'Player Lookup', icon: UserSearch },
       { to: '/roles', label: 'Roles', icon: Shield },
       { to: '/moderation', label: 'Moderation', icon: Gavel }
     ]
@@ -79,3 +82,9 @@ export const NAV: NavGroup[] = [
     ]
   }
 ]
+
+/** Shown only when the Danger Zone setting is enabled. */
+export const DANGER_NAV: NavGroup = {
+  title: 'Danger Zone',
+  items: [{ to: '/danger/system', label: 'System', icon: AlertTriangle }]
+}

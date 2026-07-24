@@ -196,7 +196,19 @@ export async function executeRequest(args: ApiRequestArgs): Promise<ApiResponse>
       // than "HTTP 401". e.g. "Couldn't decode API key: not a valid JWT".
       if (statusErr && data && typeof data === 'object') {
         const b = data as Record<string, unknown>
-        const detail = typeof b.detail === 'string' ? b.detail : undefined
+        // detail is a string for app errors, or an array of {loc, msg} for 422 validation errors.
+        const detail =
+          typeof b.detail === 'string'
+            ? b.detail
+            : Array.isArray(b.detail)
+              ? b.detail
+                  .map((d: unknown) => {
+                    const e = d as { loc?: unknown[]; msg?: string }
+                    return [Array.isArray(e.loc) ? e.loc.join('.') : '', e.msg ?? ''].filter(Boolean).join(': ')
+                  })
+                  .filter(Boolean)
+                  .join('; ') || undefined
+              : undefined
         const name = typeof b.error_name === 'string' ? b.error_name : undefined
         const serverMsg = [name, detail].filter(Boolean).join(': ')
         if (serverMsg) statusErr.message = serverMsg
