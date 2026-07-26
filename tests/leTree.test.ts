@@ -67,6 +67,27 @@ describe('buildFolderTree', () => {
   it('returns an empty tree for no configs', () => {
     expect(buildFolderTree([])).toEqual([])
   })
+
+  it('shows extraFolders as empty branches so a new folder stays visible', () => {
+    const tree = buildFolderTree([], ['Maps/Race'])
+    expect(tree.map((n) => n.name)).toEqual(['Maps'])
+    const race = tree[0].children[0]
+    expect(race.path).toBe('Maps/Race')
+    expect(race.count).toBe(0)
+    expect(race.configs).toEqual([])
+  })
+
+  it('merges an extraFolder with a folder that already has configs', () => {
+    const tree = buildFolderTree([config('Canyon', 'Maps/Race')], ['Maps/Race', 'Maps/Arena'])
+    const maps = tree.find((n) => n.name === 'Maps')!
+    expect(maps.children.map((c) => c.name)).toEqual(['Arena', 'Race'])
+    expect(maps.count).toBe(1)
+    expect(maps.children.find((c) => c.name === 'Race')!.configs).toHaveLength(1)
+  })
+
+  it('ignores blank extraFolders', () => {
+    expect(buildFolderTree([], ['', '  ', '//'])).toEqual([])
+  })
 })
 
 describe('folderPaths', () => {

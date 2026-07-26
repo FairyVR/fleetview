@@ -32,17 +32,17 @@ export function folderPaths(configs: LeConfig[]): string[] {
 /**
  * Build the folder tree for the library sidebar. Ungrouped configs go into a synthetic node
  * that always sorts last, so an empty `folder` never silently hides a config.
+ *
+ * `extraFolders` seeds empty branches. A folder path only exists on disk while a config
+ * references it, so a just-created folder needs to be passed in here to stay visible until
+ * something is dropped into it.
  */
-export function buildFolderTree(configs: LeConfig[]): FolderNode[] {
+export function buildFolderTree(configs: LeConfig[], extraFolders: string[] = []): FolderNode[] {
   const root: FolderNode = { name: '', path: '', children: [], configs: [], count: 0 }
   const ungrouped: LeConfig[] = []
 
-  for (const config of configs) {
-    const folder = normalizeFolder(config.folder)
-    if (!folder) {
-      ungrouped.push(config)
-      continue
-    }
+  /** Walk (creating as needed) to the node for a '/'-separated path. */
+  const nodeFor = (folder: string): FolderNode => {
     let node = root
     for (const segment of folder.split('/')) {
       const path = node.path ? `${node.path}/${segment}` : segment
@@ -53,7 +53,21 @@ export function buildFolderTree(configs: LeConfig[]): FolderNode[] {
       }
       node = child
     }
-    node.configs.push(config)
+    return node
+  }
+
+  for (const raw of extraFolders) {
+    const folder = normalizeFolder(raw)
+    if (folder) nodeFor(folder)
+  }
+
+  for (const config of configs) {
+    const folder = normalizeFolder(config.folder)
+    if (!folder) {
+      ungrouped.push(config)
+      continue
+    }
+    nodeFor(folder).configs.push(config)
   }
 
   const finish = (node: FolderNode): number => {
