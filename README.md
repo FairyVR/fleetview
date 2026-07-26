@@ -24,7 +24,6 @@ Grab the latest Windows installer from
 2. Launch FleetView and add your Orion Drift API key under **Keys** (owner name is required).
    Keys are stored encrypted on your machine and never leave it.
 
-The repo is private, so you need collaborator access to see Releases.
 
 ## The API
 
