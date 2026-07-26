@@ -17,6 +17,7 @@ import ModerationPage from './presentation/pages/ModerationPage'
 import EventsPage from './presentation/pages/EventsPage'
 import MatchHistoryPage from './presentation/pages/MatchHistoryPage'
 import LeLibraryPage from './presentation/pages/LeLibraryPage'
+import LeCatalogPage from './presentation/pages/LeCatalogPage'
 import ConfigEditorPage from './presentation/pages/ConfigEditorPage'
 import EndpointExplorerPage from './presentation/pages/EndpointExplorerPage'
 import DevModePage from './presentation/pages/DevModePage'
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/events" element={<EventsPage />} />
         <Route path="/matches" element={<MatchHistoryPage />} />
         <Route path="/le-library" element={<LeLibraryPage />} />
+        <Route path="/le-catalog" element={<LeCatalogPage />} />
         <Route path="/config" element={<ConfigEditorPage />} />
         <Route path="/endpoints" element={<EndpointExplorerPage />} />
         <Route path="/devmode" element={<DevModePage />} />

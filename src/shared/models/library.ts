@@ -6,6 +6,14 @@ export interface LeConfigVersion {
   note?: string
 }
 
+/** Where an installed config came from, so catalog version bumps can be surfaced. */
+export interface LeConfigSource {
+  catalogId: string
+  /** The catalog build's `version` at the time it was installed/updated. */
+  version: number
+  author?: string
+}
+
 export interface LeConfig {
   id: string
   name: string
@@ -17,10 +25,31 @@ export interface LeConfig {
   tags: string[]
   notes?: string
   favorite: boolean
+  /** Client-side folder path, '/'-separated (e.g. 'Maps/Race'). Absent = ungrouped. */
+  folder?: string
+  /** Present only when this config was installed from the community catalog. */
+  source?: LeConfigSource
   createdAt: number
   modifiedAt: number
   /** Prior versions, newest last. */
   history: LeConfigVersion[]
+}
+
+/** Longest folder path we accept, so a pasted bundle can't produce an unusable tree. */
+export const MAX_FOLDER_DEPTH = 8
+
+/**
+ * Canonicalize a folder path: trim each segment, drop empties (so `a//b` and `/a/b/` collapse),
+ * and cap depth. Returns undefined for "no folder", which is how a config lands in Ungrouped.
+ */
+export function normalizeFolder(raw: string | undefined | null): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const segments = raw
+    .split('/')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, MAX_FOLDER_DEPTH)
+  return segments.length ? segments.join('/') : undefined
 }
 
 export type PresetKind =

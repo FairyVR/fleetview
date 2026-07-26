@@ -27,6 +27,7 @@ import {
   exportBundle,
   importBundle
 } from './library-service'
+import { fetchCatalog } from './catalog-service'
 
 function readSettings(): AppSettings {
   return {
@@ -133,6 +134,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   h(CHANNELS.presetDelete, (_e, id: string) => deletePreset(id))
   h(CHANNELS.bundleExport, () => exportBundle())
   h(CHANNELS.bundleImport, (_e, bundle) => importBundle(bundle))
+
+  // Community catalog
+  h(CHANNELS.catalogGet, () => fetchCatalog(false))
+  h(CHANNELS.catalogRefresh, () => fetchCatalog(true))
 
   // System
   h(CHANNELS.secureAvailable, () => isEncryptionAvailable())

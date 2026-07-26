@@ -40,6 +40,9 @@ const api: FleetViewApi = {
   exportBundle: () => ipcRenderer.invoke(CHANNELS.bundleExport),
   importBundle: (bundle) => ipcRenderer.invoke(CHANNELS.bundleImport, bundle),
 
+  getCatalog: () => ipcRenderer.invoke(CHANNELS.catalogGet),
+  refreshCatalog: () => ipcRenderer.invoke(CHANNELS.catalogRefresh),
+
   isSecureStorageAvailable: () => ipcRenderer.invoke(CHANNELS.secureAvailable)
 }
 

@@ -10,6 +10,7 @@ import type {
   Preset,
   LibraryBundle
 } from './models'
+import type { CatalogState } from './catalog'
 
 /** IPC channel names. Single source of truth for main + preload. */
 export const CHANNELS = {
@@ -38,6 +39,8 @@ export const CHANNELS = {
   presetDelete: 'library:presetDelete',
   bundleExport: 'library:bundleExport',
   bundleImport: 'library:bundleImport',
+  catalogGet: 'catalog:get',
+  catalogRefresh: 'catalog:refresh',
   secureAvailable: 'system:secureAvailable'
 } as const
 
@@ -102,6 +105,11 @@ export interface FleetViewApi {
 
   exportBundle(): Promise<LibraryBundle>
   importBundle(bundle: LibraryBundle): Promise<{ leConfigs: number; presets: number }>
+
+  /** Community catalog, served from cache unless stale. */
+  getCatalog(): Promise<CatalogState>
+  /** Force a network refresh. Returns the stale cache plus an error if it fails. */
+  refreshCatalog(): Promise<CatalogState>
 
   isSecureStorageAvailable(): Promise<boolean>
 }

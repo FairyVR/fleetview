@@ -11,6 +11,7 @@ import {
   Activity,
   History,
   Library,
+  Store,
   FileJson,
   Network,
   TerminalSquare,
@@ -63,6 +64,7 @@ export const NAV: NavGroup[] = [
     title: 'Config',
     items: [
       { to: '/le-library', label: 'LE Config Library', icon: Library },
+      { to: '/le-catalog', label: 'Community Catalog', icon: Store },
       { to: '/config', label: 'Config Editor', icon: FileJson }
     ]
   },

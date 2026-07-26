@@ -1,11 +1,39 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Star, Copy, Trash2, Search, Download, Upload, Save, History } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import {
+  Plus,
+  Star,
+  Copy,
+  Trash2,
+  Search,
+  Download,
+  Upload,
+  Save,
+  History,
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  Pencil,
+  Check,
+  ClipboardCopy
+} from 'lucide-react'
 import type { LeConfig } from '@shared/models'
+import type { Catalog } from '@shared/catalog'
 import { api } from '../../lib/api'
 import { ts } from '../../lib/format'
 import { PageHeader, Card, Button, Badge, Field, EmptyState, JsonBlock } from '../components/ui'
 import { cn } from '../../lib/cn'
 import { normalizeLeCode } from '../../lib/leFormat'
+import {
+  buildFolderTree,
+  folderPaths,
+  renameFolder,
+  UNGROUPED,
+  type FolderNode
+} from '../../lib/leTree'
+import { catalogEntryFrom, updateState } from '../../lib/catalog'
+import { useAppStore } from '../../state/useAppStore'
 
 const BLANK: Omit<LeConfig, 'id' | 'createdAt' | 'modifiedAt' | 'history'> = {
   name: '',
@@ -15,7 +43,8 @@ const BLANK: Omit<LeConfig, 'id' | 'createdAt' | 'modifiedAt' | 'history'> = {
   code: '',
   tags: [],
   notes: '',
-  favorite: false
+  favorite: false,
+  folder: ''
 }
 
 export default function LeLibraryPage() {
@@ -29,12 +58,21 @@ export default function LeLibraryPage() {
   const parseTags = (s: string) => s.split(',').map((t) => t.trim()).filter(Boolean)
   const [showHistory, setShowHistory] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [renaming, setRenaming] = useState<{ path: string; value: string } | null>(null)
+  const [catalog, setCatalog] = useState<Catalog | null>(null)
+  const [copied, setCopied] = useState(false)
+  /** Holds the entry JSON when the clipboard is unavailable, so it can be selected by hand. */
+  const [copyError, setCopyError] = useState<string | null>(null)
+  const developerMode = useAppStore((s) => s.settings?.developerMode ?? false)
 
   async function refresh() {
     setConfigs(await api.listLeConfigs())
   }
   useEffect(() => {
     void refresh()
+    // Cached read — only used to flag installed configs that have a newer catalog version.
+    void api.getCatalog().then((s) => setCatalog(s.catalog))
   }, [])
 
   const filtered = useMemo(() => {
@@ -50,11 +88,37 @@ export default function LeLibraryPage() {
       )
   }, [configs, query, favOnly])
 
+  const tree = useMemo(() => buildFolderTree(filtered), [filtered])
+  const knownFolders = useMemo(() => folderPaths(configs), [configs])
+
   function select(c: LeConfig) {
     setSelectedId(c.id)
     setDraft(c)
     setTagsText((c.tags ?? []).join(', '))
     setShowHistory(false)
+    setCopied(false)
+    setCopyError(null)
+  }
+
+  function toggleFolder(path: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(path)) next.add(path)
+      return next
+    })
+  }
+
+  /** Rename is a bulk write — one save per affected config, then a single refresh. */
+  async function commitRename(from: string, to: string) {
+    setRenaming(null)
+    const moves = renameFolder(configs, from, to)
+    if (!moves.length) return
+    for (const { config, folder } of moves) await api.saveLeConfig({ ...config, folder })
+    await refresh()
+    setDraft((d) => {
+      const moved = moves.find((m) => m.config.id === selectedId)
+      return moved ? { ...d, folder: moved.folder } : d
+    })
   }
 
   function newConfig() {
@@ -93,6 +157,20 @@ export default function LeLibraryPage() {
     await api.saveLeConfig({ ...c, favorite: !c.favorite })
     await refresh()
     if (c.id === selectedId) setDraft((d) => ({ ...d, favorite: !d.favorite }))
+  }
+
+  /** Only report success if the write actually landed — a silent failure would mean the
+   *  maintainer pastes stale clipboard content into catalog.json. */
+  async function copyCatalogEntry(config: LeConfig) {
+    const json = JSON.stringify(catalogEntryFrom(config), null, 2)
+    try {
+      await navigator.clipboard.writeText(json)
+      setCopied(true)
+      setCopyError(null)
+    } catch {
+      setCopied(false)
+      setCopyError(json)
+    }
   }
 
   async function exportAll() {
@@ -160,23 +238,22 @@ export default function LeLibraryPage() {
               <Star size={14} />
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto grid gap-1.5 pr-1">
+          <div className="flex-1 overflow-y-auto grid gap-0.5 pr-1 content-start">
             {filtered.length === 0 && <EmptyState title="No configs" hint="Create or import one." />}
-            {filtered.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => select(c)}
-                className={cn('card px-3 py-2.5 text-left', selectedId === c.id && 'border-[var(--accent-2)]')}
-              >
-                <div className="flex items-center gap-2">
-                  {c.favorite && <Star size={12} className="text-[var(--warn)] fill-[var(--warn)]" />}
-                  <span className="font-medium text-[13px] truncate">{c.name}</span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  {c.category && <Badge>{c.category}</Badge>}
-                  {c.tags?.slice(0, 2).map((t) => <Badge key={t}>{t}</Badge>)}
-                </div>
-              </button>
+            {tree.map((node) => (
+              <FolderBranch
+                key={node.path || node.name}
+                node={node}
+                depth={0}
+                collapsed={collapsed}
+                onToggle={toggleFolder}
+                renaming={renaming}
+                setRenaming={setRenaming}
+                onRename={commitRename}
+                selectedId={selectedId}
+                onSelect={select}
+                catalog={catalog}
+              />
             ))}
           </div>
         </div>
@@ -205,9 +282,25 @@ export default function LeLibraryPage() {
                 />
               </Field>
             </div>
-            <Field label="Description">
-              <input className="input" value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Folder">
+                <input
+                  className="input"
+                  list="le-folders"
+                  placeholder="Ungrouped — e.g. Maps/Race"
+                  value={draft.folder ?? ''}
+                  onChange={(e) => setDraft({ ...draft, folder: e.target.value })}
+                />
+                <datalist id="le-folders">
+                  {knownFolders.map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
+              </Field>
+              <Field label="Description">
+                <input className="input" value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+              </Field>
+            </div>
             <Field label="LE config code">
               <textarea
                 className="input mono h-40 resize-y"
@@ -243,6 +336,15 @@ export default function LeLibraryPage() {
                   <Button onClick={() => setShowHistory((v) => !v)}>
                     <History size={14} /> Versions ({selected.history.length})
                   </Button>
+                  {developerMode && (
+                    <Button
+                      onClick={() => void copyCatalogEntry(selected)}
+                      title="Copy this config as a catalog.json entry, ready to paste on GitHub"
+                    >
+                      {copied ? <Check size={14} /> : <ClipboardCopy size={14} />}
+                      {copied ? 'Copied' : 'Copy catalog entry'}
+                    </Button>
+                  )}
                   <Button variant="danger" onClick={() => void remove(selected.id)}><Trash2 size={14} /> Delete</Button>
                   <span className="ml-auto text-[11px] text-[var(--text-faint)]">
                     modified {ts(selected.modifiedAt, false)}
@@ -250,6 +352,31 @@ export default function LeLibraryPage() {
                 </>
               )}
             </div>
+
+            {copyError && (
+              <div className="grid gap-1.5">
+                <div className="label">Clipboard unavailable — copy this entry by hand</div>
+                <JsonBlock value={copyError} className="max-h-48" />
+              </div>
+            )}
+
+            {selected?.source && (
+              <div className="flex items-center gap-2 flex-wrap text-[12px] text-[var(--text-dim)]">
+                <Badge tone="accent">
+                  from catalog{selected.source.author ? ` · ${selected.source.author}` : ''}
+                </Badge>
+                {updateState(selected, catalog) === 'update' ? (
+                  <>
+                    <Badge tone="warn">update available</Badge>
+                    <Link to="/le-catalog" className="text-[var(--accent)] hover:underline">
+                      Open the catalog →
+                    </Link>
+                  </>
+                ) : (
+                  <span>v{selected.source.version}</span>
+                )}
+              </div>
+            )}
 
             {showHistory && selected && (
               <div className="grid gap-2">
@@ -269,6 +396,154 @@ export default function LeLibraryPage() {
       </div>
     </div>
   )
+}
+
+/** One folder row plus its children. The Ungrouped bucket has no path and cannot be renamed. */
+function FolderBranch({
+  node,
+  depth,
+  collapsed,
+  onToggle,
+  renaming,
+  setRenaming,
+  onRename,
+  selectedId,
+  onSelect,
+  catalog
+}: {
+  node: FolderNode
+  depth: number
+  collapsed: Set<string>
+  onToggle: (path: string) => void
+  renaming: { path: string; value: string } | null
+  setRenaming: (r: { path: string; value: string } | null) => void
+  onRename: (from: string, to: string) => void | Promise<void>
+  selectedId: string | null
+  onSelect: (c: LeConfig) => void
+  catalog: Catalog | null
+}) {
+  const isUngrouped = !node.path
+  const key = node.path || UNGROUPED
+  const open = !collapsed.has(key)
+  const isRenaming = renaming?.path === node.path && !isUngrouped
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-elev-2)] group"
+        style={{ paddingLeft: 8 + depth * 12 }}
+      >
+        <button
+          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+          onClick={() => onToggle(key)}
+        >
+          {open ? (
+            <ChevronDown size={13} className="text-[var(--text-faint)] shrink-0" />
+          ) : (
+            <ChevronRight size={13} className="text-[var(--text-faint)] shrink-0" />
+          )}
+          {open ? (
+            <FolderOpen size={13} className="text-[var(--accent-2)] shrink-0" />
+          ) : (
+            <Folder size={13} className="text-[var(--accent-2)] shrink-0" />
+          )}
+          {isRenaming ? (
+            <input
+              autoFocus
+              className="input h-6 py-0 text-[12px]"
+              value={renaming.value}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setRenaming({ path: node.path, value: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void onRename(node.path, parentOf(node.path) + renaming.value)
+                if (e.key === 'Escape') setRenaming(null)
+              }}
+              onBlur={() => setRenaming(null)}
+            />
+          ) : (
+            <>
+              <span
+                className={cn(
+                  'text-[12.5px] truncate',
+                  isUngrouped && 'text-[var(--text-faint)] italic'
+                )}
+              >
+                {node.name}
+              </span>
+              <span className="text-[11px] text-[var(--text-faint)] shrink-0">{node.count}</span>
+            </>
+          )}
+        </button>
+        {!isUngrouped && !isRenaming && (
+          <button
+            className="opacity-0 group-hover:opacity-100 text-[var(--text-faint)] hover:text-[var(--text)]"
+            title="Rename folder"
+            onClick={() => setRenaming({ path: node.path, value: node.name })}
+          >
+            <Pencil size={11} />
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <>
+          {node.children.map((child) => (
+            <FolderBranch
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              collapsed={collapsed}
+              onToggle={onToggle}
+              renaming={renaming}
+              setRenaming={setRenaming}
+              onRename={onRename}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              catalog={catalog}
+            />
+          ))}
+          {node.configs.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => onSelect(c)}
+              className={cn(
+                'w-full text-left px-2 py-1.5 rounded-lg hover:bg-[var(--bg-elev-2)]',
+                selectedId === c.id && 'bg-[var(--bg-elev-2)] ring-1 ring-[var(--accent-2)]'
+              )}
+              style={{ paddingLeft: 8 + (depth + 1) * 12 + 14 }}
+            >
+              <div className="flex items-center gap-1.5">
+                {c.favorite && (
+                  <Star size={11} className="text-[var(--warn)] fill-[var(--warn)] shrink-0" />
+                )}
+                <span className="text-[12.5px] truncate">{c.name}</span>
+                {updateState(c, catalog) === 'update' && (
+                  <span
+                    className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--warn)] shrink-0"
+                    title="Update available in the catalog"
+                  />
+                )}
+              </div>
+              {(!!c.category || !!c.tags?.length) && (
+                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                  {c.category && <Badge>{c.category}</Badge>}
+                  {c.tags?.slice(0, 2).map((t) => (
+                    <Badge key={t}>{t}</Badge>
+                  ))}
+                </div>
+              )}
+            </button>
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** 'Maps/Race' -> 'Maps/', so a rename edits only the last segment. */
+function parentOf(path: string): string {
+  const cut = path.lastIndexOf('/')
+  return cut === -1 ? '' : path.slice(0, cut + 1)
 }
 
 function downloadJson(name: string, data: unknown) {

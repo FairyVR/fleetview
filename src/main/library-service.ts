@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { LeConfig, Preset, LibraryBundle } from '@shared/models'
+import { normalizeFolder } from '@shared/models'
 import { libraryStore } from './stores'
 
 // ── LE configs ───────────────────────────────────────────────────────
@@ -26,6 +27,9 @@ export function saveLeConfig(input: Partial<LeConfig> & { name: string; code: st
       tags: input.tags ?? existing.tags,
       notes: input.notes ?? existing.notes,
       favorite: input.favorite ?? existing.favorite,
+      // `?? existing` would make a folder unclearable — moving to Ungrouped sends folder: undefined.
+      folder: 'folder' in input ? normalizeFolder(input.folder) : existing.folder,
+      source: 'source' in input ? input.source : existing.source,
       modifiedAt: now
     })
     libraryStore.set('leConfigs', configs)
@@ -42,6 +46,8 @@ export function saveLeConfig(input: Partial<LeConfig> & { name: string; code: st
     tags: input.tags ?? [],
     notes: input.notes,
     favorite: input.favorite ?? false,
+    folder: normalizeFolder(input.folder),
+    source: input.source,
     createdAt: now,
     modifiedAt: now,
     history: []

@@ -1,6 +1,7 @@
 import Store from 'electron-store'
 import type { ApiKeyRecord, PermissionSet } from '@shared/models'
 import type { LeConfig, Preset } from '@shared/models'
+import type { Catalog } from '@shared/catalog'
 import type { ThemeId } from '@shared/ipc'
 
 /** App settings. */
@@ -54,4 +55,14 @@ export const permissionsStore = new Store<{ perms: Record<string, PermissionSet>
 export const libraryStore = new Store<{ leConfigs: LeConfig[]; presets: Preset[] }>({
   name: 'library',
   defaults: { leConfigs: [], presets: [] }
+})
+
+/** Cached copy of the remote community catalog, so the page works offline. */
+export const catalogStore = new Store<{
+  catalog: Catalog | null
+  fetchedAt: number
+  etag: string | null
+}>({
+  name: 'catalog',
+  defaults: { catalog: null, fetchedAt: 0, etag: null }
 })
