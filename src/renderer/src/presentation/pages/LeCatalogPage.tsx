@@ -29,7 +29,11 @@ export default function LeCatalogPage() {
     setLoading(false)
   }
   useEffect(() => {
-    void load(false)
+    // Always hit the network here: the file is a few KB and the ETag makes an unchanged
+    // catalog a bodiless 304. Serving the TTL cache on mount meant a freshly published build
+    // stayed invisible for hours unless the user happened to press Refresh. The cache still
+    // backs this page when offline, and still serves the library page's update badges.
+    void load(true)
   }, [])
 
   const builds = state?.catalog?.builds ?? []
