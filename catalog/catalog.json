@@ -1,5 +1,21 @@
 {
   "version": 1,
   "updatedAt": 0,
-  "builds": []
+  "builds": [
+    {
+  "id": "scraprun-blocker",
+  "name": "Scraprun Blocker",
+  "author": "Another Axiom",
+  "description": "Blocks the scraprun entrance",
+  "version": 1,
+  "tags": [
+    "Scraprun",
+    "Gamemode",
+    "Misc"
+  ],
+  "category": "Scraprun",
+  "updatedAt": 1785042104251,
+  "code": "\"CustomGamemodes.Scraprun3\": \"1;c;g;76FDD7964A13E75566CE508D0425F2CC;;ScraprunBlocker\""
+}
+  ]
 }
