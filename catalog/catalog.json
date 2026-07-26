@@ -16,6 +16,20 @@
   "category": "Scraprun",
   "updatedAt": 1785042104251,
   "code": "\"CustomGamemodes.Scraprun3\": \"1;c;g;76FDD7964A13E75566CE508D0425F2CC;;ScraprunBlocker\""
+},
+    {
+  "id": "floor-is-lava",
+  "name": "Floor Is Lava",
+  "author": "Another Axiom",
+  "description": "Loads Floor is LAVA (Shitty Version) into the parkour district",
+  "version": 1,
+  "tags": [
+    "Parkour",
+    "Gamemode"
+  ],
+  "category": "Minigames",
+  "updatedAt": 1785042731860,
+  "code": "\"customgamemodes.Default_910711118\": \"1;c;g;CD1577E14C5780945619559D798A86EB;;^0.1.3\""
 }
   ]
 }
