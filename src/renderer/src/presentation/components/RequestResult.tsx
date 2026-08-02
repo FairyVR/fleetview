@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import { AlertTriangle, WifiOff, Lock, Clock, KeyRound } from 'lucide-react'
 import type { ApiResponse } from '@shared/models'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../state/useAppStore'
-import { Spinner, EmptyState, Button, Badge } from './ui'
+import { Spinner, EmptyState, Button, Badge, ApiKeyHowTo } from './ui'
 
 /**
  * Renders the standard lifecycle for an endpoint call: loading / typed error / data.
@@ -23,12 +24,33 @@ export function RequestResult<T>({
   empty?: ReactNode
 }) {
   const keys = useAppStore((s) => s.keys)
+  const navigate = useNavigate()
 
   if (loading && !response) return <Spinner />
   if (!response) return <>{empty ?? <EmptyState title="No data yet" hint="Run the request to load data." />}</>
 
   if (response.error) {
     const e = response.error
+
+    // No key stored anywhere: retrying can never succeed — send them to the API Keys tab.
+    if (keys.length === 0) {
+      return (
+        <EmptyState
+          icon={<KeyRound size={22} />}
+          title="No API key yet"
+          hint="FleetView needs an Orion Drift API key before it can load anything."
+          action={
+            <div className="flex flex-col items-center gap-4">
+              <Button variant="primary" onClick={() => navigate('/keys')}>
+                <KeyRound size={14} /> Add an API key
+              </Button>
+              <ApiKeyHowTo />
+            </div>
+          }
+        />
+      )
+    }
+
     const icon =
       e.kind === 'offline' || e.kind === 'network' ? (
         <WifiOff size={22} />

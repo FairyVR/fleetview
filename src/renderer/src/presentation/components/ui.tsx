@@ -131,6 +131,33 @@ export function JsonBlock({ value, className }: { value: unknown; className?: st
   )
 }
 
+/** How to obtain an Orion Drift dashboard API key. Shown anywhere a key is missing/being added. */
+export function ApiKeyHowTo({ className }: { className?: string }) {
+  return (
+    <div className={cn('text-[12px] text-[var(--text-dim)] text-left', className)}>
+      <div className="text-[var(--text-faint)] mb-1.5">How to get a key</div>
+      <ol className="list-decimal pl-4 space-y-1">
+        <li>
+          Open{' '}
+          <a
+            href="https://dashboard.oriondrift.net/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[var(--accent)] underline underline-offset-2"
+          >
+            dashboard.oriondrift.net
+          </a>
+        </li>
+        <li>Click the face icon in the top right</li>
+        <li>
+          Click <span className="text-[var(--text)]">Create Key</span>
+        </li>
+        <li>Copy the key and paste it here</li>
+      </ol>
+    </div>
+  )
+}
+
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">

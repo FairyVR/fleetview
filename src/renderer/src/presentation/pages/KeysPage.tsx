@@ -5,7 +5,7 @@ import { useAppStore } from '../../state/useAppStore'
 import { useSelectionStore } from '../../state/useSelectionStore'
 import { api } from '../../lib/api'
 import { ago } from '../../lib/format'
-import { PageHeader, Button, Card, Badge, StatusDot, Field, EmptyState } from '../components/ui'
+import { PageHeader, Button, Card, Badge, StatusDot, Field, EmptyState, ApiKeyHowTo } from '../components/ui'
 import { Modal } from '../components/Modal'
 
 function tone(h: ApiKeyRecord['health']) {
@@ -153,7 +153,12 @@ export default function KeysPage() {
             icon={<KeyRound size={22} />}
             title="No API keys yet"
             hint="Paste an Orion Drift API key to get started. You can store several and switch between them."
-            action={<Button variant="primary" onClick={() => setAdding(true)}>Add your first key</Button>}
+            action={
+              <div className="flex flex-col items-center gap-4">
+                <Button variant="primary" onClick={() => setAdding(true)}>Add your first key</Button>
+                <ApiKeyHowTo />
+              </div>
+            }
           />
         </Card>
       ) : (
@@ -222,6 +227,7 @@ export default function KeysPage() {
         }
       >
         <div className="grid gap-3">
+          <ApiKeyHowTo className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-elev-2)] p-3" />
           <Field label="Name">
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Alpha admin" />
           </Field>

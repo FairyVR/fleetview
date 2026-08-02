@@ -16,13 +16,25 @@ with near-zero code changes.
 
 ## Download & install (for admins)
 
-Grab the latest Windows installer from
-[**Releases**](https://github.com/FairyVR/fleetview/releases) → `FleetView Setup x.y.z.exe`.
+Grab the latest build from [**Releases**](https://github.com/FairyVR/fleetview/releases).
+
+**Windows** → `FleetView Setup x.y.z.exe`
 
 1. Run the installer. It's **unsigned**, so SmartScreen will warn — click
    **More info → Run anyway**.
-2. Launch FleetView and add your Orion Drift API key under **Keys** (owner name is required).
-   Keys are stored encrypted on your machine and never leave it.
+
+**macOS** → `FleetView-x.y.z-arm64.dmg` (Apple Silicon) or `-x64.dmg` (Intel)
+
+1. Open the dmg and drag FleetView to Applications.
+2. It's **unsigned**, so the first launch says *"FleetView is damaged and can't be opened."*
+   It isn't — that's the download quarantine flag. Clear it once in Terminal:
+
+   ```sh
+   xattr -cr /Applications/FleetView.app
+   ```
+
+Then launch FleetView and add your Orion Drift API key under **Keys** (owner name is required).
+Keys are stored encrypted on your machine and never leave it.
 
 
 ## The API
@@ -86,6 +98,10 @@ npm run gen:docs   # regenerate docs/ENDPOINTS.md from the registry
 npm run dist       # → release/FleetView Setup x.y.z.exe (NSIS installer)
 gh release create vX.Y.Z "release/FleetView Setup X.Y.Z.exe" --title "FleetView X.Y.Z"
 ```
+
+macOS dmgs can't be built on Windows, so publishing that release fires
+[`.github/workflows/release-mac.yml`](.github/workflows/release-mac.yml), which builds the
+arm64 + x64 dmgs on a macOS runner and attaches them to the same release.
 
 The app icon comes from `build/icon.png` (founder badge). If electron-builder fails with
 *"Cannot create symbolic link"* while unpacking winCodeSign, see the workaround in

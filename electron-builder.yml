@@ -11,6 +11,10 @@ win:
 mac:
   target: dmg
   category: public.app-category.developer-tools
+  # No Apple Developer cert. `identity: null` makes electron-builder ad-hoc sign,
+  # which arm64 macOS requires — a fully unsigned build will not launch on Apple Silicon.
+  identity: null
+  artifactName: ${productName}-${version}-${arch}.${ext}
 linux:
   target: AppImage
   category: Development
