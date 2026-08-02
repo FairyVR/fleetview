@@ -6,15 +6,18 @@ directories:
 files:
   - out/**/*
   - package.json
+# Asset names carry the OS + arch so it's obvious which file to grab on the Releases page.
 win:
   target: nsis
+  artifactName: ${productName}-${version}-Windows-${arch}.${ext}
 mac:
   target: dmg
   category: public.app-category.developer-tools
   # No Apple Developer cert. `identity: null` makes electron-builder ad-hoc sign,
   # which arm64 macOS requires — a fully unsigned build will not launch on Apple Silicon.
   identity: null
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: ${productName}-${version}-macOS-${arch}.${ext}
 linux:
   target: AppImage
   category: Development
+  artifactName: ${productName}-${version}-Linux-${arch}.${ext}

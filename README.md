@@ -16,22 +16,27 @@ with near-zero code changes.
 
 ## Download & install (for admins)
 
-Grab the latest build from [**Releases**](https://github.com/FairyVR/fleetview/releases).
+Grab the file for your OS from [**Releases**](https://github.com/FairyVR/fleetview/releases):
 
-**Windows** → `FleetView Setup x.y.z.exe`
+| Your machine | Download |
+| --- | --- |
+| **Windows** 10/11 | `FleetView-x.y.z-Windows-x64.exe` |
+| **macOS** — Apple Silicon (M1–M4) | `FleetView-x.y.z-macOS-arm64.dmg` |
+| **macOS** — Intel | `FleetView-x.y.z-macOS-x64.dmg` |
+| **Linux** — x86_64 | `FleetView-x.y.z-Linux-x86_64.AppImage` |
 
-1. Run the installer. It's **unsigned**, so SmartScreen will warn — click
-   **More info → Run anyway**.
+**Windows** — run the installer. It's **unsigned**, so SmartScreen will warn: click
+**More info → Run anyway**.
 
-**macOS** → `FleetView-x.y.z-arm64.dmg` (Apple Silicon) or `-x64.dmg` (Intel)
+**macOS** — open the dmg and drag FleetView to Applications. It's **unsigned**, so the first
+launch says *"FleetView is damaged and can't be opened."* It isn't — that's the download
+quarantine flag. Clear it once in Terminal:
 
-1. Open the dmg and drag FleetView to Applications.
-2. It's **unsigned**, so the first launch says *"FleetView is damaged and can't be opened."*
-   It isn't — that's the download quarantine flag. Clear it once in Terminal:
+```sh
+xattr -cr /Applications/FleetView.app
+```
 
-   ```sh
-   xattr -cr /Applications/FleetView.app
-   ```
+**Linux** — make it executable and run it: `chmod +x FleetView-*.AppImage && ./FleetView-*.AppImage`.
 
 Then launch FleetView and add your Orion Drift API key under **Keys** (owner name is required).
 Keys are stored encrypted on your machine and never leave it.
@@ -99,9 +104,10 @@ npm run dist       # → release/FleetView Setup x.y.z.exe (NSIS installer)
 gh release create vX.Y.Z "release/FleetView Setup X.Y.Z.exe" --title "FleetView X.Y.Z"
 ```
 
-macOS dmgs can't be built on Windows, so publishing that release fires
-[`.github/workflows/release-mac.yml`](.github/workflows/release-mac.yml), which builds the
-arm64 + x64 dmgs on a macOS runner and attaches them to the same release.
+macOS and Linux builds need their own OS, so publishing that release fires
+[`.github/workflows/release-desktop.yml`](.github/workflows/release-desktop.yml), which builds
+the arm64 + x64 dmgs on a macOS runner and the AppImage on Ubuntu, then attaches all three to
+the same release.
 
 The app icon comes from `build/icon.png` (founder badge). If electron-builder fails with
 *"Cannot create symbolic link"* while unpacking winCodeSign, see the workaround in
