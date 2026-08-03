@@ -99,6 +99,31 @@
   --bad: #dc2626;
 }
 
+/* Select popups, scrollbars, and other UA-painted widgets are drawn by the browser,
+   not by our CSS. Without this they default to light and render white-on-white in
+   every dark theme. */
+:root,
+:root[data-theme='dark'],
+:root[data-theme='midnight'],
+:root[data-theme='nebula'],
+:root[data-theme='aurora'] {
+  color-scheme: dark;
+}
+:root[data-theme='light'],
+:root[data-theme='solar'] {
+  color-scheme: light;
+}
+
+/* Pull the popup list onto the theme palette rather than the generic UA dark grey. */
+select option,
+select optgroup {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+select option:checked {
+  color: var(--accent);
+}
+
 html,
 body,
 #root {

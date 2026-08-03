@@ -1,11 +1,14 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Rocket, Server } from 'lucide-react'
 import badge from '../../assets/founder_badge.png'
 import wordmark from '../../assets/od-wordmark.png'
 import { useEffect, type ReactNode } from 'react'
 import { NAV, DANGER_NAV } from '../nav'
 import { cn } from '../../lib/cn'
 import { useAppStore } from '../../state/useAppStore'
+import { useSelectionStore, type FleetOption } from '../../state/useSelectionStore'
+import { useEndpoint } from '../../services/useEndpoint'
+import { fleetAccess, sortByAccess } from '../../lib/fleetAccess'
 import { StatusDot } from './ui'
 import type { KeyHealth } from '@shared/models'
 
@@ -16,27 +19,149 @@ function healthTone(h: KeyHealth): 'good' | 'warn' | 'bad' | 'idle' {
   return 'idle'
 }
 
+/** The header's dropdown chrome — one bordered pill, shared by every switcher. */
+function Pill({
+  lead,
+  value,
+  onChange,
+  width,
+  children
+}: {
+  lead: ReactNode
+  value: string
+  onChange: (v: string) => void
+  width: string
+  children: ReactNode
+}) {
+  return (
+    <div className="group relative flex items-center gap-2 px-3 h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-elev-2)] transition-colors hover:border-[var(--accent-2)] focus-within:border-[var(--accent-2)]">
+      {lead}
+      <select
+        className={cn(
+          'bg-transparent text-[13px] outline-none appearance-none pr-5 text-[var(--text)] cursor-pointer truncate',
+          width
+        )}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        size={14}
+        className="absolute right-2.5 pointer-events-none text-[var(--text-faint)] transition-colors group-hover:text-[var(--accent)]"
+      />
+    </div>
+  )
+}
+
 function KeySwitcher() {
   const { keys, activeKeyId, setActiveKey } = useAppStore()
   const active = keys.find((k) => k.id === activeKeyId)
   return (
-    <div className="relative">
-      <div className="flex items-center gap-2 px-3 h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-elev-2)]">
-        <StatusDot status={active ? healthTone(active.health) : 'idle'} />
-        <select
-          className="bg-transparent text-[13px] outline-none appearance-none pr-5 max-w-[220px] text-[var(--text)]"
-          value={activeKeyId ?? ''}
-          onChange={(e) => void setActiveKey(e.target.value || null)}
-        >
-          {keys.length === 0 && <option value="">No keys — add one</option>}
-          {keys.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.owner || k.name}
-            </option>
+    <Pill
+      lead={<StatusDot status={active ? healthTone(active.health) : 'idle'} />}
+      value={activeKeyId ?? ''}
+      onChange={(v) => void setActiveKey(v || null)}
+      width="max-w-[220px]"
+    >
+      {keys.length === 0 && <option value="">No keys — add one</option>}
+      {keys.map((k) => (
+        <option key={k.id} value={k.id}>
+          {k.owner || k.name}
+        </option>
+      ))}
+    </Pill>
+  )
+}
+
+/** Real API: fleets carry fleet_id/fleet_name and an embedded stations array. */
+function asFleetOptions(data: unknown): FleetOption[] {
+  const d = data as { items?: unknown[]; fleets?: unknown[] } | unknown[] | null
+  const arr = Array.isArray(d) ? d : (d?.items ?? d?.fleets ?? [])
+  if (!Array.isArray(arr)) return []
+  return (arr as Record<string, unknown>[]).map((f) => ({
+    id: String(f.fleet_id ?? f.id ?? ''),
+    name: String(f.fleet_name ?? f.name ?? f.fleet_id ?? 'Unnamed fleet'),
+    stations: (Array.isArray(f.stations) ? (f.stations as Record<string, unknown>[]) : []).map((s) => ({
+      id: String(s.station_id ?? s.id ?? ''),
+      name: String(s.station_name ?? s.name ?? s.station_id ?? 'Unnamed station')
+    }))
+  }))
+}
+
+/**
+ * Fleet + station context, switchable from anywhere. Owns the single `fleet.list` call
+ * and caches it into the selection store so pages read stations instead of refetching.
+ */
+function ContextSwitcher() {
+  const activeKeyId = useAppStore((s) => s.activeKeyId)
+  const grants = useAppStore((s) => s.permissions.grants ?? {})
+  const { fleetId, fleetName, stationId, stationName, fleets, selectFleet, selectStation, setFleets } =
+    useSelectionStore()
+  const { data } = useEndpoint('fleet.list', {
+    params: { include_stations: true, include_offline_fleets: false, page_size: 32, page: 1 },
+    auto: true,
+    enabled: !!activeKeyId
+  })
+
+  useEffect(() => {
+    if (data) setFleets(asFleetOptions(data))
+  }, [data, setFleets])
+
+  const current = fleets.find((f) => f.id === fleetId)
+  const stations = current?.stations ?? []
+
+  // Group by what the key can actually do, so manage-capable fleets lead. Never filter:
+  // probed grants are advisory and can't see write scopes, so hiding a fleet on a missing
+  // grant would lock the user out of one they really can administer.
+  const groups: { label: string; fleets: FleetOption[] }[] = [
+    { label: 'Moderation / configuration', fleets: [] },
+    { label: 'Access not probed', fleets: [] },
+    { label: 'Read-only', fleets: [] }
+  ]
+  for (const f of sortByAccess(fleets, grants)) {
+    const { tier } = fleetAccess(grants[f.id])
+    groups[tier === 'admin' || tier === 'elevated' ? 0 : tier === 'unknown' ? 1 : 2].fleets.push(f)
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Pill
+        lead={<Rocket size={13} className="text-[var(--accent)] shrink-0" />}
+        value={fleetId ?? ''}
+        onChange={(v) => selectFleet(v || null, fleets.find((f) => f.id === v)?.name ?? null)}
+        width="max-w-[180px]"
+      >
+        <option value="">{fleets.length ? 'No fleet selected' : 'No fleets'}</option>
+        {/* A remembered fleet the list hasn't loaded (or no longer returns) must still show. */}
+        {fleetId && !current && <option value={fleetId}>{fleetName ?? fleetId}</option>}
+        {groups
+          .filter((g) => g.fleets.length > 0)
+          .map((g) => (
+            <optgroup key={g.label} label={g.label}>
+              {g.fleets.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                  {fleetAccess(grants[f.id]).tier === 'admin' ? ' · admin' : ''}
+                </option>
+              ))}
+            </optgroup>
           ))}
-        </select>
-        <ChevronDown size={14} className="absolute right-2.5 pointer-events-none text-[var(--text-faint)]" />
-      </div>
+      </Pill>
+      <Pill
+        lead={<Server size={13} className="text-[var(--accent)] shrink-0" />}
+        value={stationId ?? ''}
+        onChange={(v) => selectStation(v || null, stations.find((s) => s.id === v)?.name ?? null)}
+        width="max-w-[180px]"
+      >
+        <option value="">{stations.length ? 'No station selected' : 'No stations'}</option>
+        {stationId && !stations.some((s) => s.id === stationId) && (
+          <option value={stationId}>{stationName ?? stationId}</option>
+        )}
+        {stations.map((s) => (
+          <option key={s.id} value={s.id}>{s.name}</option>
+        ))}
+      </Pill>
     </div>
   )
 }
@@ -108,7 +233,10 @@ export function Layout({ children }: { children: ReactNode }) {
             {baseUrl || 'no base URL set'}
             {placeholderBase && <span className="text-[var(--warn)]">· not set — configure in Settings</span>}
           </div>
-          <KeySwitcher />
+          <div className="flex items-center gap-2 shrink-0">
+            <ContextSwitcher />
+            <KeySwitcher />
+          </div>
         </header>
         <main key={location.pathname} className="flex-1 overflow-y-auto p-6">
           {children}

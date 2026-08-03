@@ -70,6 +70,13 @@ export interface AppSettings {
   showIds: boolean
   /** Unlocks the Danger Zone section (raw movement-physics writes). Off by default. */
   dangerZone: boolean
+  /** Overview auto-refresh interval in seconds; 0 = off (the default). */
+  overviewPollSeconds: number
+  /** Last fleet/station context, restored on startup so station-scoped pages work immediately. */
+  lastFleetId: string | null
+  lastFleetName: string | null
+  lastStationId: string | null
+  lastStationName: string | null
 }
 
 /** The typed surface exposed to the renderer as `window.api`. */

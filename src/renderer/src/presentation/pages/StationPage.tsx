@@ -11,22 +11,10 @@ import { PermissionGate } from '../components/PermissionGate'
 import { JsonEditor, validateJson } from '../components/JsonEditor'
 import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
 import { stationPlayerCounts } from '../../lib/presence'
+import { isOnline } from '../../lib/fleetOverview'
 import { regionLabel } from '../../lib/format'
 import { useNavigate } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
-
-/**
- * The `online` flag from /v2/fleets/:id/stations is unreliable (live-verified: it reports
- * false for stations whose last_event is seconds old). Treat a station as online unless
- * it's disabled or genuinely silent for a while.
- */
-function isOnline(s: Record<string, unknown>): boolean {
-  if (s.disabled === true) return false
-  if (s.online === true) return true
-  const last = typeof s.last_event === 'string' ? Date.parse(s.last_event) : NaN
-  if (!Number.isNaN(last)) return Date.now() - last < 10 * 60 * 1000
-  return true
-}
 
 function asStations(data: unknown, fleetId: string): Station[] {
   const d = data as

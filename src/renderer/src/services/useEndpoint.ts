@@ -22,9 +22,11 @@ export function useEndpoint<T = unknown>(
     /** Fetch automatically on mount / when `enabled` flips true. */
     auto?: boolean
     enabled?: boolean
+    /** Re-run every N ms while the window is visible. 0/undefined = no polling. */
+    pollMs?: number
   } = {}
 ): UseEndpointResult<T> {
-  const { params, body, auto = false, enabled = true } = opts
+  const { params, body, auto = false, enabled = true, pollMs = 0 } = opts
   const [response, setResponse] = useState<ApiResponse<T> | null>(null)
   const [loading, setLoading] = useState(false)
   const paramsKey = JSON.stringify(params ?? {})
@@ -60,6 +62,15 @@ export function useEndpoint<T = unknown>(
     if (auto && enabled) void run()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, enabled, endpointId, paramsKey, bodyKey])
+
+  useEffect(() => {
+    if (!pollMs || pollMs <= 0 || !enabled) return
+    // Skip ticks while the window is hidden — a backgrounded app shouldn't burn requests.
+    const id = setInterval(() => {
+      if (!document.hidden) void run()
+    }, pollMs)
+    return () => clearInterval(id)
+  }, [pollMs, enabled, run])
 
   return { data: response?.data ?? null, response, loading, run }
 }

@@ -83,10 +83,15 @@ describe('gamemode naming', () => {
 })
 
 describe('board naming', () => {
-  it('names mapped slots and falls back beyond the list', () => {
-    expect(boardName(0).name).toBe('Landing pad triboard left: sides')
-    expect(boardName(9).name).toBe('Club large promo board')
-    expect(boardName(12).name).toBe('Board 12')
+  it('names the real config keys, which are not 0-9', () => {
+    expect(boardName(3).name).toBe('Landing pad triboard left: sides')
+    expect(boardName(14).name).toBe('Club large promo board')
+  })
+
+  it('falls back for the keys that drive nothing', () => {
+    expect(boardName(0).name).toBe('Board 0')
+    expect(boardName(9).name).toBe('Board 9')
+    expect(boardName(11).name).toBe('Board 11')
   })
 })
 

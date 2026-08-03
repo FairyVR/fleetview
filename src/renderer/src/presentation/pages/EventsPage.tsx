@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import type { ServerEvent } from '@shared/models'
 import { useEndpoint } from '../../services/useEndpoint'
@@ -46,31 +46,14 @@ export default function EventsPage() {
 }
 
 function EventsViewer({ stationId }: { stationId: string }) {
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const { data, response, loading, run } = useEndpoint<unknown>('events.station', {
     params: { stationId },
-    auto: true
+    auto: true,
+    pollMs: autoRefresh ? 4000 : 0
   })
-  const [autoRefresh, setAutoRefresh] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-
-  useEffect(() => {
-    if (autoRefresh) {
-      intervalRef.current = setInterval(() => {
-        void run()
-      }, 4000)
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [autoRefresh, run])
 
   const events = asEvents(data)
 

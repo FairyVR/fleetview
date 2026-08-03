@@ -21,3 +21,9 @@ electron.vite.config.*.mjs
 # Tooling runtime artifacts
 .claude-flow/
 .playwright-mcp/
+scripts/.board-snapshot.json
+scripts/.board-snapshot.json
+src/renderer/src/assets/board-calibration/*.raw
+src/renderer/src/assets/board-calibration/*.raw
+.claude/
+.claude-flow/

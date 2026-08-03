@@ -15,6 +15,13 @@ export interface Settings {
   developerMode: boolean
   showIds: boolean
   dangerZone: boolean
+  /** Overview auto-refresh interval in seconds; 0 = off. */
+  overviewPollSeconds: number
+  /** Last fleet/station context, restored on startup. */
+  lastFleetId: string | null
+  lastFleetName: string | null
+  lastStationId: string | null
+  lastStationName: string | null
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -25,7 +32,12 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   developerMode: false,
   showIds: false,
-  dangerZone: false
+  dangerZone: false,
+  overviewPollSeconds: 0,
+  lastFleetId: null,
+  lastFleetName: null,
+  lastStationId: null,
+  lastStationName: null
 }
 
 export const settingsStore = new Store<Settings>({

@@ -7,6 +7,7 @@ import { useAppStore } from '../../state/useAppStore'
 import { PageHeader, Button, Badge } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { regionLabel } from '../../lib/format'
+import { accessLabel, fleetAccess, sortByAccess } from '../../lib/fleetAccess'
 
 /** Real API returns fleets with fleet_id/fleet_name and an embedded stations array. */
 function asFleets(data: unknown): Fleet[] {
@@ -41,13 +42,6 @@ export default function FleetPage() {
   const selectFleet = useSelectionStore((s) => s.selectFleet)
   const navigate = useNavigate()
 
-  // Probed scopes beyond the fleet:read baseline = the key actually works in this fleet.
-  const accessScopes = (fleetId: string): string[] => {
-    const scopes = grants[fleetId] ?? []
-    // admin = all scopes; showing anything else alongside it is noise
-    return scopes.includes('admin') ? ['admin'] : scopes.filter((s) => s !== 'fleet:read')
-  }
-
   function open(f: Fleet) {
     selectFleet(f.id, f.name)
     navigate('/stations')
@@ -64,13 +58,9 @@ export default function FleetPage() {
         {(raw) => {
           // fleet.list already returns only fleets the key can reach, and probed grants are
           // advisory (a transient probe failure must never HIDE a fleet — that was the old
-          // bug). So show every returned fleet; just sort the ones with confirmed station
-          // access to the top and badge the rest as unprobed.
-          const usable = (id: string): boolean =>
-            (grants[id] ?? []).some((s) => s === 'station:read' || s === 'admin')
-          const fleets = asFleets(raw).sort(
-            (a, b) => Number(usable(b.id)) - Number(usable(a.id))
-          )
+          // bug). So show every returned fleet; just sort the manage-capable ones to the top
+          // and badge the rest by what was actually confirmed.
+          const fleets = sortByAccess(asFleets(raw), grants)
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {fleets.map((f) => (
@@ -91,12 +81,17 @@ export default function FleetPage() {
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {f.region && <Badge>{regionLabel(f.region)}</Badge>}
                     {f.stationCount != null && <Badge tone="accent">{f.stationCount} stations</Badge>}
+                    {/* Server-declared permissions when present — authoritative, unlike probes. */}
                     {f.permissionLevel && <Badge tone="good">{f.permissionLevel}</Badge>}
-                    {accessScopes(f.id).length > 0 ? (
-                      <Badge tone="good">access · {accessScopes(f.id).join(', ')}</Badge>
-                    ) : (
-                      Object.keys(grants).length > 0 && <Badge tone="neutral">access not probed</Badge>
-                    )}
+                    {(() => {
+                      const a = fleetAccess(grants[f.id])
+                      if (a.tier === 'unknown' && !Object.keys(grants).length) return null
+                      return (
+                        <Badge tone={a.tier === 'admin' || a.tier === 'elevated' ? 'good' : 'neutral'}>
+                          {accessLabel(a)}
+                        </Badge>
+                      )
+                    })()}
                   </div>
                 </button>
               ))}

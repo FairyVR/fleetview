@@ -67,6 +67,22 @@ export default function SettingsPage() {
           </Field>
         </div>
 
+        <Field label="Overview auto-refresh">
+          <select
+            className="input"
+            value={draft.overviewPollSeconds}
+            onChange={(e) => setDraft({ ...draft, overviewPollSeconds: Number(e.target.value) })}
+          >
+            <option value={0}>Off — refresh manually</option>
+            <option value={10}>Every 10 seconds</option>
+            <option value={30}>Every 30 seconds</option>
+            <option value={60}>Every 60 seconds</option>
+          </select>
+          <span className="text-[12px] text-[var(--text-faint)] mt-1.5 inline-block">
+            Polls the selected fleet&apos;s stations and events while the Overview is open and the window is visible.
+          </span>
+        </Field>
+
         <Field label="Theme">
           <select
             className="input"

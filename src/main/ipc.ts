@@ -37,7 +37,12 @@ function readSettings(): AppSettings {
     theme: settingsStore.get('theme'),
     developerMode: settingsStore.get('developerMode'),
     showIds: settingsStore.get('showIds'),
-    dangerZone: settingsStore.get('dangerZone')
+    dangerZone: settingsStore.get('dangerZone'),
+    overviewPollSeconds: settingsStore.get('overviewPollSeconds'),
+    lastFleetId: settingsStore.get('lastFleetId'),
+    lastFleetName: settingsStore.get('lastFleetName'),
+    lastStationId: settingsStore.get('lastStationId'),
+    lastStationName: settingsStore.get('lastStationName')
   }
 }
 
@@ -88,6 +93,18 @@ function sanitizeSettingsPatch(patch: Partial<AppSettings>): Partial<AppSettings
   if ('developerMode' in patch) out.developerMode = !!patch.developerMode
   if ('showIds' in patch) out.showIds = !!patch.showIds
   if ('dangerZone' in patch) out.dangerZone = !!patch.dangerZone
+  if ('overviewPollSeconds' in patch) {
+    const n = Number(patch.overviewPollSeconds)
+    if (!Number.isFinite(n)) throw new Error('overviewPollSeconds must be a number.')
+    // 0 = off; anything else is clamped to a sane polling band.
+    out.overviewPollSeconds = n <= 0 ? 0 : Math.min(300, Math.max(10, Math.round(n)))
+  }
+  for (const k of ['lastFleetId', 'lastFleetName', 'lastStationId', 'lastStationName'] as const) {
+    if (k in patch) {
+      const v = patch[k]
+      out[k] = v == null ? null : String(v).slice(0, 200)
+    }
+  }
   return out
 }
 

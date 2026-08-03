@@ -26,5 +26,7 @@
     "tests/keyService.test.ts",
     "tests/apiClient.test.ts",
     "electron.vite.config.ts"
-  ]
+  ],
+  // Dev-only calibration tools: run with tsx, and they import renderer code this project excludes.
+  "exclude": ["scripts/check-calibration.ts", "scripts/render-preview.ts"]
 }

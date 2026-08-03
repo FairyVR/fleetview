@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { Layout } from './presentation/components/Layout'
 import { useAppStore } from './state/useAppStore'
 import { useLogStore } from './state/useLogStore'
+import { useSelectionStore } from './state/useSelectionStore'
 import { Spinner } from './presentation/components/ui'
 
 import DashboardPage from './presentation/pages/DashboardPage'
@@ -30,11 +31,13 @@ export default function App() {
   const loaded = useAppStore((s) => s.loaded)
   const load = useAppStore((s) => s.load)
   const initLogs = useLogStore((s) => s.init)
+  const hydrateSelection = useSelectionStore((s) => s.hydrate)
 
   useEffect(() => {
     void load()
     void initLogs()
-  }, [load, initLogs])
+    void hydrateSelection()
+  }, [load, initLogs, hydrateSelection])
 
   if (!loaded) {
     return (
