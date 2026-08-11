@@ -56,6 +56,8 @@ export type PresetKind =
   | 'arena'
   | 'gamemode'
   | 'board-layout'
+  /** The per-board URL library: one record holding every board slot's saved and recent URLs. */
+  | 'board-slot'
   | 'le-config'
   | 'spawn'
   | 'team'

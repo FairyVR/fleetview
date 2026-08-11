@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Image as ImageIcon, RefreshCw, Save, XCircle, Upload, Check, AlertTriangle, Eye } from 'lucide-react'
+import {
+  Image as ImageIcon,
+  RefreshCw,
+  Save,
+  XCircle,
+  Upload,
+  Check,
+  AlertTriangle,
+  ListPlus
+} from 'lucide-react'
 import type { BoardSlot } from '@shared/models'
 import { api } from '../../lib/api'
 import { PageHeader, Card, Button, Badge, Field } from '../components/ui'
@@ -7,8 +16,26 @@ import { StationScoped } from '../components/StationScoped'
 import { PermissionGate } from '../components/PermissionGate'
 import { BOARD_KEY_PREFIX, BOARD_NAMES, BOARD_SECTION, boardIsInGame, boardName } from '../../lib/boards'
 import { CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
-import { FLAG_TEXTURE_SHARE, aspectVerdict, resolutionNote } from '../../lib/boardPreview'
-import { loadBoardPreviews, hasCalibration, type BoardPreview } from '../../lib/boardCalibration'
+import { loadBoardPreviews, type BoardPreview } from '../../lib/boardCalibration'
+import { BoardTile } from '../components/BoardTile'
+import {
+  BOARD_SET_KIND,
+  BOARD_SLOT_KIND,
+  SLOT_LIBRARY_NAME,
+  applySet,
+  buildSet,
+  parseBoardSet,
+  parseSlotLibrary,
+  recordUse,
+  removeEntry,
+  serializeBoardSet,
+  serializeSlotLibrary,
+  setChangeCount,
+  setPinned,
+  type BoardSet,
+  type SlotLibrary
+} from '../../lib/boardLibrary'
+import { BoardSetBar, BoardUrlPicker } from '../components/BoardLibraryPanel'
 
 /** All ten boards always render (empty = no image yet), so the layout matches the dashboard. */
 const DEFAULT_SLOTS: BoardSlot[] = BOARD_NAMES.map((b) => ({
@@ -49,184 +76,6 @@ export default function BoardManagerPage() {
   )
 }
 
-/**
- * One surface of a board assembly. The face shows the top of the texture, a pennant shows the
- * flag strip from the bottom — rotated a quarter turn, which is how the game flies it.
- */
-function Surface({
-  url,
-  name,
-  surface,
-  onLoad,
-  onError
-}: {
-  url: string
-  name: string
-  surface: BoardPreview
-  onLoad?: (w: number, h: number) => void
-  onError?: () => void
-}) {
-  const { box, crop, kind, aspect } = surface
-  const cropped = (
-    <div className="absolute inset-0 overflow-hidden">
-      <img
-        src={url}
-        alt={name}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: `${(-crop.y / crop.h) * 100}%`,
-          width: '100%',
-          height: `${100 / crop.h}%`,
-          objectFit: 'fill'
-        }}
-        onLoad={(e) => onLoad?.(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
-        onError={onError}
-      />
-    </div>
-  )
-
-  return (
-    <div
-      className="absolute overflow-hidden"
-      style={{
-        left: `${box.x * 100}%`,
-        top: `${box.y * 100}%`,
-        width: `${box.w * 100}%`,
-        height: `${box.h * 100}%`
-      }}
-    >
-      {kind === 'flag' ? (
-        // Clockwise, confirmed against the reference artwork: the strip's left end flies at the
-        // top. Rotating swaps the extents, so undo that with the box's own aspect to refill it.
-        <div
-          className="absolute inset-0"
-          style={{ transform: `rotate(90deg) scale(${1 / aspect}, ${aspect})` }}
-        >
-          {cropped}
-        </div>
-      ) : (
-        cropped
-      )}
-    </div>
-  )
-}
-
-/**
- * Shows the texture where it actually lands in-game: the calibration screenshot is layered on
- * top with the board punched out, and the texture sits behind it in each of the board's
- * surfaces. With no calibration shot for this board it degrades to a plain thumbnail.
- */
-function BoardTile({
-  url,
-  name,
-  previews,
-  shown,
-  busy,
-  onShow
-}: {
-  url: string
-  name: string
-  previews: BoardPreview[]
-  shown: boolean
-  busy: boolean
-  onShow: () => void
-}) {
-  const [view, setView] = useState(0)
-  const [broken, setBroken] = useState(false)
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null)
-
-  // A slot can appear in several districts; show one shot at a time, with all its surfaces.
-  const shots = [...new Set(previews.map((p) => p.shot))]
-  const shot = shots[Math.min(view, shots.length - 1)]
-  const surfaces = previews.filter((p) => p.shot === shot)
-  const preview = surfaces.find((s) => s.kind === 'face') ?? surfaces[0]
-
-  // A new URL is innocent until its own load fails.
-  useEffect(() => {
-    setBroken(false)
-    setSize(null)
-  }, [url])
-
-  // Only the face region of the texture lands on the board — the flag strip goes to the pennants.
-  const verdict =
-    preview?.kind === 'face' && size
-      ? aspectVerdict(size.w, size.h * (1 - FLAG_TEXTURE_SHARE), preview.aspect)
-      : 'unknown'
-  const oversized = size ? resolutionNote(size.w, size.h) : null
-
-  const texture = url ? (
-    <img
-      src={url}
-      alt={name}
-      className="w-full h-full"
-      style={{ objectFit: 'cover' }}
-      onError={() => setBroken(true)}
-      onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-    />
-  ) : null
-
-  return (
-    <div className="grid gap-2">
-      {preview ? (
-        <div className="relative rounded-lg overflow-hidden bg-[var(--bg)] border border-[var(--border-soft)]">
-          {!!url &&
-            surfaces.map((s, i) => (
-              <Surface
-                key={`${s.box.x}-${s.box.y}`}
-                url={url}
-                name={name}
-                surface={s}
-                // One surface reports for the whole tile — they all load the same image.
-                onLoad={i === 0 ? (w, h) => setSize({ w, h }) : undefined}
-                onError={i === 0 ? () => setBroken(true) : undefined}
-              />
-            ))}
-          <img src={preview.cutoutUrl} alt="" className="relative block w-full" />
-        </div>
-      ) : (
-        <div className="aspect-video rounded-lg overflow-hidden bg-[var(--bg)] border border-[var(--border-soft)] grid place-items-center">
-          {texture ?? <span className="text-[12px] text-[var(--text-faint)]">no image</span>}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
-        {shots.length > 1 &&
-          shots.map((s, i) => (
-            <button
-              key={s}
-              className="chip"
-              onClick={() => setView(i)}
-              style={s === shot ? { color: 'var(--accent)' } : undefined}
-            >
-              {s}
-            </button>
-          ))}
-        {!!url && broken && (
-          <Badge tone="bad">
-            <XCircle size={11} /> image failed to load
-          </Badge>
-        )}
-        {!broken && verdict === 'stretched' && (
-          <Badge tone="warn">
-            <AlertTriangle size={11} /> will look stretched
-          </Badge>
-        )}
-        {!broken && oversized && <Badge tone="warn">{oversized}</Badge>}
-        {!shown && hasCalibration() && (
-          // Opt-in: building it means segmenting every calibration screenshot, which takes a
-          // moment, and most visits to this page do not need it.
-          <Button onClick={onShow} disabled={busy}>
-            <Eye size={13} /> {busy ? 'Loading…' : 'Load preview (beta)'}
-          </Button>
-        )}
-        {shown && !preview && (
-          <span className="text-[11px] text-[var(--text-faint)]">not found in the calibration shots</span>
-        )}
-      </div>
-    </div>
-  )
-}
 
 function BoardEditor({ stationId }: { stationId: string }) {
   const [slots, setSlots] = useState<BoardSlot[]>(DEFAULT_SLOTS)
@@ -237,6 +86,83 @@ function BoardEditor({ stationId }: { stationId: string }) {
   const [previews, setPreviews] = useState<Map<number, BoardPreview[]>>(new Map())
   const [shown, setShown] = useState<Set<string>>(new Set())
   const [busyKey, setBusyKey] = useState('')
+  const [library, setLibrary] = useState<SlotLibrary>({})
+  /** Id of the single preset holding the slot library, once it exists. */
+  const [libraryId, setLibraryId] = useState<string | undefined>()
+  const [savedSets, setSavedSets] = useState<Array<{ id: string; name: string; set: BoardSet }>>([])
+  const [pickerKey, setPickerKey] = useState('')
+
+  /**
+   * Saved configurations and per-board history both live in the local Config Library. A failure
+   * here must never block editing boards, so it degrades to an empty library and a badge.
+   */
+  async function loadLibrary() {
+    try {
+      const presets = await api.listPresets()
+      setSavedSets(
+        presets
+          .filter((p) => p.kind === BOARD_SET_KIND)
+          .map((p) => ({ id: p.id, name: p.name, set: parseBoardSet(p.data) }))
+      )
+      const record = presets.find((p) => p.kind === BOARD_SLOT_KIND)
+      setLibraryId(record?.id)
+      setLibrary(parseSlotLibrary(record?.data))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load the board library.')
+    }
+  }
+
+  /** Write the slot library back to its single preset, creating it on first use. */
+  async function persistLibrary(next: SlotLibrary) {
+    setLibrary(next)
+    try {
+      const saved = await api.savePreset({
+        id: libraryId,
+        kind: BOARD_SLOT_KIND,
+        name: SLOT_LIBRARY_NAME,
+        data: serializeSlotLibrary(next),
+        tags: []
+      })
+      setLibraryId(saved.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the board library.')
+    }
+  }
+
+  /** Saving under an existing name overwrites it rather than growing a pile of duplicates. */
+  async function saveSet(name: string) {
+    try {
+      await api.savePreset({
+        id: savedSets.find((s) => s.name.toLowerCase() === name.toLowerCase())?.id,
+        kind: BOARD_SET_KIND,
+        name,
+        data: serializeBoardSet(buildSet(slots)),
+        tags: []
+      })
+      await loadLibrary()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not save "${name}".`)
+    }
+  }
+
+  async function deleteSet(id: string) {
+    try {
+      await api.deletePreset(id)
+      await loadLibrary()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete that configuration.')
+    }
+  }
+
+  /** Remember a URL that actually reached the station. */
+  function remember(applied: BoardSlot[]) {
+    const at = Date.now()
+    let next = library
+    for (const slot of applied) {
+      if (slot.textureUrl) next = recordUse(next, slotNumber(slot.key), slot.textureUrl, at)
+    }
+    if (next !== library) void persistLibrary(next)
+  }
 
   /**
    * Previews are built on request, per board. The work is segmenting every calibration
@@ -275,6 +201,12 @@ function BoardEditor({ stationId }: { stationId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stationId])
 
+  // The library is local and station-independent, so it loads once rather than per station.
+  useEffect(() => {
+    void loadLibrary()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function setUrl(key: string, url: string) {
     setSlots((s) => s.map((slot) => (slot.key === key ? { ...slot, textureUrl: url } : slot)))
   }
@@ -296,6 +228,7 @@ function BoardEditor({ stationId }: { stationId: string }) {
       return
     }
     setSavedKey(slot.key)
+    remember([slot])
     setTimeout(() => setSavedKey(''), 1200)
   }
 
@@ -309,6 +242,7 @@ function BoardEditor({ stationId }: { stationId: string }) {
       return
     }
     setOriginal(slots)
+    remember(changed)
   }
 
   const dirty = JSON.stringify(slots) !== JSON.stringify(original)
@@ -327,6 +261,14 @@ function BoardEditor({ stationId }: { stationId: string }) {
         {dirty && <Badge tone="warn">unsaved changes</Badge>}
         {error && <Badge tone="bad"><XCircle size={11} /> {error}</Badge>}
       </div>
+
+      <BoardSetBar
+        sets={savedSets.map((s) => ({ ...s, changes: setChangeCount(slots, s.set) }))}
+        onApply={(s) => setSlots((current) => applySet(current, s.set))}
+        onSave={(name) => void saveSet(name)}
+        onDelete={(s) => void deleteSet(s.id)}
+        busy={loading}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {slots.map((slot) => (
@@ -370,16 +312,38 @@ function BoardEditor({ stationId }: { stationId: string }) {
               />
             </Field>
 
-            <div className="flex gap-2">
+            {/* self-start: grid rows stretch, so an open picker next door would stretch these. */}
+            <div className="flex gap-2 self-start">
               <PermissionGate scope="station_config:write">
                 <Button variant="primary" onClick={() => void apply(slot)}>
                   <Upload size={13} /> Apply
                 </Button>
               </PermissionGate>
+              <Button
+                onClick={() => setPickerKey((k) => (k === slot.key ? '' : slot.key))}
+                variant={pickerKey === slot.key ? 'primary' : 'default'}
+              >
+                <ListPlus size={13} /> Change image
+              </Button>
               <Button onClick={() => setUrl(slot.key, '')}>
                 <XCircle size={13} /> Clear
               </Button>
             </div>
+
+            {pickerKey === slot.key && (
+              <BoardUrlPicker
+                slot={slotNumber(slot.key)}
+                library={library}
+                currentUrl={slot.textureUrl}
+                onUse={(url) => setUrl(slot.key, url)}
+                onPin={(url, pinned) =>
+                  void persistLibrary(setPinned(library, slotNumber(slot.key), url, pinned))
+                }
+                onRemove={(url) =>
+                  void persistLibrary(removeEntry(library, slotNumber(slot.key), url))
+                }
+              />
+            )}
           </Card>
         ))}
       </div>
