@@ -41,6 +41,7 @@ export const CHANNELS = {
   bundleImport: 'library:bundleImport',
   catalogGet: 'catalog:get',
   catalogRefresh: 'catalog:refresh',
+  discordPresence: 'discord:setPresence',
   secureAvailable: 'system:secureAvailable'
 } as const
 
@@ -60,6 +61,22 @@ export function isLightTheme(theme: string | undefined): boolean {
   return !!THEMES.find((t) => t.id === theme)?.light
 }
 
+/** How much of what you're doing is published to Discord. */
+export type DiscordPrivacy = 'off' | 'minimal' | 'standard' | 'detailed'
+
+export const DISCORD_PRIVACY: ReadonlyArray<{ id: DiscordPrivacy; label: string; hint: string }> = [
+  { id: 'off', label: 'Off', hint: 'Nothing is sent to Discord.' },
+  { id: 'minimal', label: 'Minimal', hint: 'Only "in FleetView" — no page, no fleet, no station.' },
+  { id: 'standard', label: 'Standard', hint: 'Adds the page you are on (e.g. "Moderation").' },
+  { id: 'detailed', label: 'Detailed', hint: 'Adds the selected fleet and station names.' }
+]
+
+/** What a Discord rich-presence update carries. Never includes IDs, keys, or player data. */
+export interface PresenceActivity {
+  details: string
+  state?: string
+}
+
 export interface AppSettings {
   baseUrl: string
   requestTimeoutMs: number
@@ -72,6 +89,8 @@ export interface AppSettings {
   dangerZone: boolean
   /** Overview auto-refresh interval in seconds; 0 = off (the default). */
   overviewPollSeconds: number
+  /** How much detail Discord rich presence publishes. 'off' by default. */
+  discordPrivacy: DiscordPrivacy
   /** Last fleet/station context, restored on startup so station-scoped pages work immediately. */
   lastFleetId: string | null
   lastFleetName: string | null
@@ -117,6 +136,9 @@ export interface FleetViewApi {
   getCatalog(): Promise<CatalogState>
   /** Force a network refresh. Returns the stale cache plus an error if it fails. */
   refreshCatalog(): Promise<CatalogState>
+
+  /** Publish (or clear, with `null`) Discord rich presence. No-op unless enabled in Settings. */
+  setPresence(activity: PresenceActivity | null): Promise<void>
 
   isSecureStorageAvailable(): Promise<boolean>
 }

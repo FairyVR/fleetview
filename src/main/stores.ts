@@ -2,7 +2,7 @@ import Store from 'electron-store'
 import type { ApiKeyRecord, PermissionSet } from '@shared/models'
 import type { LeConfig, Preset } from '@shared/models'
 import type { Catalog } from '@shared/catalog'
-import type { ThemeId } from '@shared/ipc'
+import type { DiscordPrivacy, ThemeId } from '@shared/ipc'
 
 /** App settings. */
 export interface Settings {
@@ -17,6 +17,8 @@ export interface Settings {
   dangerZone: boolean
   /** Overview auto-refresh interval in seconds; 0 = off. */
   overviewPollSeconds: number
+  /** How much detail Discord rich presence publishes. */
+  discordPrivacy: DiscordPrivacy
   /** Last fleet/station context, restored on startup. */
   lastFleetId: string | null
   lastFleetName: string | null
@@ -34,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
   showIds: false,
   dangerZone: false,
   overviewPollSeconds: 0,
+  discordPrivacy: 'off',
   lastFleetId: null,
   lastFleetName: null,
   lastStationId: null,

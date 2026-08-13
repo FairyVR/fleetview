@@ -1,5 +1,12 @@
 import { ipcMain, type BrowserWindow } from 'electron'
-import { CHANNELS, type AppSettings } from '@shared/ipc'
+import {
+  CHANNELS,
+  DISCORD_PRIVACY,
+  type AppSettings,
+  type DiscordPrivacy,
+  type PresenceActivity
+} from '@shared/ipc'
+import { setPresence } from './discord-rpc'
 import { settingsStore } from './stores'
 import { isEncryptionAvailable } from './secure-storage'
 import { executeRequest } from './api-client'
@@ -39,6 +46,7 @@ function readSettings(): AppSettings {
     showIds: settingsStore.get('showIds'),
     dangerZone: settingsStore.get('dangerZone'),
     overviewPollSeconds: settingsStore.get('overviewPollSeconds'),
+    discordPrivacy: settingsStore.get('discordPrivacy'),
     lastFleetId: settingsStore.get('lastFleetId'),
     lastFleetName: settingsStore.get('lastFleetName'),
     lastStationId: settingsStore.get('lastStationId'),
@@ -99,6 +107,11 @@ function sanitizeSettingsPatch(patch: Partial<AppSettings>): Partial<AppSettings
     // 0 = off; anything else is clamped to a sane polling band.
     out.overviewPollSeconds = n <= 0 ? 0 : Math.min(300, Math.max(10, Math.round(n)))
   }
+  if ('discordPrivacy' in patch) {
+    const v = String(patch.discordPrivacy)
+    if (!DISCORD_PRIVACY.some((p) => p.id === v)) throw new Error(`Unknown Discord privacy level: ${v}`)
+    out.discordPrivacy = v as DiscordPrivacy
+  }
   for (const k of ['lastFleetId', 'lastFleetName', 'lastStationId', 'lastStationName'] as const) {
     if (k in patch) {
       const v = patch[k]
@@ -155,6 +168,20 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   // Community catalog
   h(CHANNELS.catalogGet, () => fetchCatalog(false))
   h(CHANNELS.catalogRefresh, () => fetchCatalog(true))
+
+  // Discord rich presence. The stored privacy level — not the renderer — decides whether
+  // anything leaves the machine, and only these two short strings ever do.
+  h(CHANNELS.discordPresence, (_e, activity: PresenceActivity | null) => {
+    const off = settingsStore.get('discordPrivacy') === 'off'
+    const clean =
+      off || !activity
+        ? null
+        : {
+            details: String(activity.details ?? '').slice(0, 128),
+            ...(activity.state ? { state: String(activity.state).slice(0, 128) } : {})
+          }
+    setPresence(clean)
+  })
 
   // System
   h(CHANNELS.secureAvailable, () => isEncryptionAvailable())

@@ -1,6 +1,6 @@
 {
   "name": "fleetview",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "FleetView — a production-grade desktop control app for Orion Drift fleets and stations, built on a data-driven API endpoint registry.",
   "author": "FairyVR",
   "license": "MIT",
@@ -20,7 +20,8 @@
     "dist": "electron-vite build && electron-builder"
   },
   "dependencies": {
-    "electron-store": "^10.0.0"
+    "electron-store": "^10.0.0",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@monaco-editor/react": "^4.6.0",

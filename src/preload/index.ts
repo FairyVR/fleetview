@@ -43,6 +43,8 @@ const api: FleetViewApi = {
   getCatalog: () => ipcRenderer.invoke(CHANNELS.catalogGet),
   refreshCatalog: () => ipcRenderer.invoke(CHANNELS.catalogRefresh),
 
+  setPresence: (activity) => ipcRenderer.invoke(CHANNELS.discordPresence, activity),
+
   isSecureStorageAvailable: () => ipcRenderer.invoke(CHANNELS.secureAvailable)
 }
 

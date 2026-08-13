@@ -6,6 +6,12 @@ directories:
 files:
   - out/**/*
   - package.json
+# Where the in-app updater looks for new versions. electron-builder also writes the
+# latest*.yml manifests the updater needs into each release when publishing.
+publish:
+  provider: github
+  owner: FairyVR
+  repo: fleetview
 # Asset names carry the OS + arch so it's obvious which file to grab on the Releases page.
 win:
   target: nsis

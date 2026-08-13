@@ -14,6 +14,8 @@ export interface Ban {
   bannedAt: number
   expiresAt?: number
   revoked?: boolean
+  /** User ID of the moderator who issued the ban (`created_by`). */
+  createdBy?: string
 }
 
 function toMs(v: unknown): number | undefined {
@@ -42,6 +44,7 @@ export function asBans(data: unknown): Ban[] {
     duration: b.duration,
     bannedAt: toMs(b.timestamp ?? b.banned_at ?? b.bannedAt) ?? 0,
     expiresAt: toMs(b.expiration ?? b.expires_at ?? b.expiresAt),
-    revoked: typeof b.revoked === 'boolean' ? b.revoked : undefined
+    revoked: typeof b.revoked === 'boolean' ? b.revoked : undefined,
+    createdBy: String(b.created_by ?? b.createdBy ?? '') || undefined
   }))
 }

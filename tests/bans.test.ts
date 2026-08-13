@@ -23,6 +23,12 @@ describe('asBans (live payload shape)', () => {
     expect(b.bannedAt).toBe(Date.parse('2026-06-08T01:40:29.917967Z'))
     expect(b.expiresAt).toBeUndefined() // null expiration = permanent
     expect(b.revoked).toBe(false)
+    expect(b.createdBy).toBe('mod-1') // the moderator who issued the ban
+  })
+
+  it('leaves createdBy undefined when the payload has no created_by', () => {
+    const [b] = asBans([{ ban_id: 'x', user_id: 'u' }])
+    expect(b.createdBy).toBeUndefined()
   })
 
   it('parses a tz-less expiration as UTC (the API omits the trailing Z there)', () => {

@@ -1,10 +1,13 @@
 import { useEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { Layout } from './presentation/components/Layout'
 import { useAppStore } from './state/useAppStore'
 import { useLogStore } from './state/useLogStore'
 import { useSelectionStore } from './state/useSelectionStore'
 import { Spinner } from './presentation/components/ui'
+import { NAV, DANGER_NAV } from './presentation/nav'
+import { presenceFor } from './lib/discordPresence'
+import { api } from './lib/api'
 
 import DashboardPage from './presentation/pages/DashboardPage'
 import FleetPage from './presentation/pages/FleetPage'
@@ -27,6 +30,21 @@ import KeysPage from './presentation/pages/KeysPage'
 import DangerSystemPage from './presentation/pages/DangerSystemPage'
 import SettingsPage from './presentation/pages/SettingsPage'
 
+/** Push the current page + selection to Discord, filtered by the chosen privacy level. */
+function useDiscordPresence(): void {
+  const level = useAppStore((s) => s.settings?.discordPrivacy)
+  const { pathname } = useLocation()
+  const fleetName = useSelectionStore((s) => s.fleetName)
+  const stationName = useSelectionStore((s) => s.stationName)
+
+  useEffect(() => {
+    if (!level) return
+    const page =
+      [...NAV, DANGER_NAV].flatMap((g) => g.items).find((i) => i.to === pathname)?.label ?? null
+    void api.setPresence(presenceFor(level, { page, fleetName, stationName }))
+  }, [level, pathname, fleetName, stationName])
+}
+
 export default function App() {
   const loaded = useAppStore((s) => s.loaded)
   const load = useAppStore((s) => s.load)
@@ -38,6 +56,8 @@ export default function App() {
     void initLogs()
     void hydrateSelection()
   }, [load, initLogs, hydrateSelection])
+
+  useDiscordPresence()
 
   if (!loaded) {
     return (

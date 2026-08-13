@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { appendFileSync } from 'node:fs'
 import { registerIpc } from './ipc'
+import { initUpdater } from './updater'
 import { settingsStore } from './stores'
 
 /** The only origin the window is ever allowed to load (dev server in dev, packaged files in prod). */
@@ -95,6 +96,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerIpc(() => mainWindow)
   createWindow()
+  initUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

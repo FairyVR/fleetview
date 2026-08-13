@@ -9,6 +9,7 @@ import { FleetScoped } from '../components/FleetScoped'
 import { ts } from '../../lib/format'
 import { asBans, type Ban } from '../../lib/bans'
 import { resolveUserId } from '../../lib/fleetUsers'
+import { resolveUserNames } from '../../lib/userNames'
 import { useAppStore } from '../../state/useAppStore'
 
 /**
@@ -91,6 +92,20 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
     params: { fleetId, include_revoked: true, include_expired: true },
     auto: true
   })
+
+  // Bans carry the moderator as a bare user ID (`created_by`) — look the names up once per load.
+  const [modNames, setModNames] = useState<Record<string, string>>({})
+  useEffect(() => {
+    const ids = asBans(bansResponse?.data).map((b) => b.createdBy ?? '')
+    if (ids.every((id) => !id)) return
+    let live = true
+    void resolveUserNames(fleetId, ids).then((names) => {
+      if (live) setModNames(Object.fromEntries(names))
+    })
+    return () => {
+      live = false
+    }
+  }, [bansResponse, fleetId])
 
   async function handleBan() {
     if (!banPlayerId.trim() || !banReason.trim()) return
@@ -362,6 +377,16 @@ function ModerationPanel({ fleetId }: { fleetId: string }) {
                               <p className="text-[var(--text-dim)]">{ban.reason}</p>
                               {ban.comments && (
                                 <p className="text-[var(--text-faint)] text-[11.5px] mt-0.5">{ban.comments}</p>
+                              )}
+                              {ban.createdBy && (
+                                <p className="text-[var(--text-dim)] text-[11.5px] mt-0.5">
+                                  Banned by {modNames[ban.createdBy] ?? ban.createdBy}
+                                  {showIds && modNames[ban.createdBy] && (
+                                    <span className="mono text-[11px] text-[var(--text-faint)] ml-1.5">
+                                      {ban.createdBy}
+                                    </span>
+                                  )}
+                                </p>
                               )}
                             </div>
                             {justSavedId === ban.id && <Badge tone="good">Saved</Badge>}

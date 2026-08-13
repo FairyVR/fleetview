@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { normalizeBaseUrl } from '@shared/registry'
-import { THEMES, type ThemeId } from '@shared/ipc'
+import { THEMES, DISCORD_PRIVACY, type ThemeId, type DiscordPrivacy } from '@shared/ipc'
 import { useAppStore } from '../../state/useAppStore'
 import { PageHeader, Card, Button, Field, Badge } from '../components/ui'
 
@@ -124,6 +124,33 @@ export default function SettingsPage() {
           <span className="text-[13px]">Show internal IDs</span>
           <Badge>fleet, station, and player IDs in lists</Badge>
         </label>
+      </Card>
+
+      <Card className="grid gap-4 mt-4">
+        <div className="text-[13px] font-medium">Discord rich presence</div>
+
+        <Field label="What Discord shows">
+          <select
+            className="input"
+            value={draft.discordPrivacy}
+            onChange={(e) => setDraft({ ...draft, discordPrivacy: e.target.value as DiscordPrivacy })}
+          >
+            {DISCORD_PRIVACY.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+          <span className="text-[12px] text-[var(--text-faint)] mt-1.5 inline-block">
+            {DISCORD_PRIVACY.find((p) => p.id === draft.discordPrivacy)?.hint}
+            {' '}Keys, IDs, and player data are never published at any level.
+          </span>
+        </Field>
+
+        {draft.discordPrivacy !== 'off' && (
+          <span className="text-[12px] text-[var(--text-faint)]">
+            Requires the Discord desktop client running on this machine. Nothing is sent while
+            Discord is closed.
+          </span>
+        )}
       </Card>
     </div>
   )

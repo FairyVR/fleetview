@@ -9,6 +9,7 @@ import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { useAppStore } from '../../state/useAppStore'
 import { loadRoleMembers, type FleetUser } from '../../lib/fleetUsers'
+import { assignFailureReason } from '../../lib/roleAssign'
 
 interface Role {
   id: string
@@ -123,11 +124,7 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
         })
         const exists = (res.data as { user_exists?: boolean } | null)?.user_exists
         const ok = res.ok && exists !== false
-        results.push({
-          name,
-          ok,
-          msg: ok ? undefined : res.ok ? 'no user with that name exists' : res.error?.message ?? `HTTP ${res.status}`
-        })
+        results.push({ name, ok, msg: ok ? undefined : assignFailureReason(res) })
       }
       setAssignResults(results)
       if (results.every((r) => r.ok)) setNames('')
@@ -217,10 +214,16 @@ function RolesEditor({ fleetId }: { fleetId: string }) {
               {assignResults && (
                 <div className="grid gap-1">
                   {assignResults.map((r) => (
-                    <div key={r.name} className="flex items-center gap-2 text-[12px]">
+                    <div key={r.name} className="flex items-start gap-2 text-[12px]">
                       <Badge tone={r.ok ? 'good' : 'bad'}>{r.ok ? 'ok' : 'failed'}</Badge>
-                      <span>{r.name}</span>
-                      {r.msg && <span className="text-[var(--text-dim)]">{r.msg}</span>}
+                      <div className="min-w-0">
+                        <span>{r.name}</span>
+                        {r.msg && (
+                          <span className="text-[var(--text-dim)]">
+                            {' '}failed to whitelist — {r.msg}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -9,6 +9,7 @@ import { FleetScoped } from '../components/FleetScoped'
 import { Modal } from '../components/Modal'
 import { asBans, type Ban } from '../../lib/bans'
 import { loadUserRoles, type FleetRole } from '../../lib/fleetUsers'
+import { resolveUserNames } from '../../lib/userNames'
 import { ago } from '../../lib/format'
 import { isOnline } from '../../lib/presence'
 import { useAppStore } from '../../state/useAppStore'
@@ -59,6 +60,8 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
   const [banReason, setBanReason] = useState('')
   const [banHours, setBanHours] = useState('24')
   const [banHistory, setBanHistory] = useState<Ban[]>([])
+  /** `created_by` user ID → display name, for the "Banned by" line. */
+  const [modNames, setModNames] = useState<Record<string, string>>({})
   const [loadingBans, setLoadingBans] = useState(false)
   const [profile, setProfile] = useState<unknown>(null)
   const [playerRoles, setPlayerRoles] = useState<FleetRole[] | null>(null)
@@ -78,6 +81,7 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
     setPlayerRoles(null)
     setBanResult(null)
     setBanHistory([])
+    setModNames({})
     setDetailOpen(true)
     setLoadingBans(true)
     const isCurrent = () => activeIdRef.current === player.id
@@ -97,7 +101,15 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
         endpointId: 'player.bans',
         params: { fleetId, userId: player.id }
       })
-      if (isCurrent()) setBanHistory(asBans(res.data))
+      const bans = asBans(res.data)
+      if (isCurrent()) setBanHistory(bans)
+      // player.bans may not carry `created_by`; when it does, name the moderator.
+      const modIds = bans.map((b) => b.createdBy ?? '').filter(Boolean)
+      if (modIds.length > 0) {
+        void resolveUserNames(fleetId, modIds).then(
+          (names) => isCurrent() && setModNames(Object.fromEntries(names))
+        )
+      }
     } catch {
       /* leave ban history empty */
     } finally {
@@ -308,6 +320,11 @@ function PlayerSearcher({ fleetId }: { fleetId: string }) {
                           )}
                         </div>
                         <p className="text-[var(--text-dim)]">{ban.reason}</p>
+                        {ban.createdBy && (
+                          <p className="text-[var(--text-faint)] text-[11.5px]">
+                            Banned by {modNames[ban.createdBy] ?? ban.createdBy}
+                          </p>
+                        )}
                       </div>
                     </Card>
                   ))}
