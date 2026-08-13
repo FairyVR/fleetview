@@ -1,5 +1,7 @@
 import { app } from 'electron'
-import { autoUpdater } from 'electron-updater'
+// electron-updater is CommonJS; the ESM main bundle can only take its default export.
+import electronUpdater from 'electron-updater'
+const { autoUpdater } = electronUpdater
 
 /**
  * Auto-update against GitHub Releases on FairyVR/fleetview (feed configured in
