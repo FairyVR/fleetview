@@ -43,41 +43,35 @@ const DEFAULT_SETTINGS: Settings = {
   lastStationName: null
 }
 
-export const settingsStore = new Store<Settings>({
-  name: 'settings',
-  defaults: DEFAULT_SETTINGS
-})
+/**
+ * A store that resets itself instead of taking the app down. An unparseable file (partial
+ * write, stray BOM, hand-edit) otherwise throws inside the constructor at import time, which
+ * is an uncaught exception in the main process — the app never opens a window.
+ */
+function store<T extends object>(name: string, defaults: T): Store<T> {
+  return new Store<T>({ name, defaults, clearInvalidConfig: true })
+}
+
+export const settingsStore = store<Settings>('settings', DEFAULT_SETTINGS)
 
 /** Public key metadata (never the secret). */
-export const keysStore = new Store<{ keys: ApiKeyRecord[] }>({
-  name: 'keys',
-  defaults: { keys: [] }
-})
+export const keysStore = store('keys', { keys: [] as ApiKeyRecord[] })
 
 /** Encrypted key secrets: keyId -> base64(safeStorage-encrypted secret). */
-export const secretsStore = new Store<{ secrets: Record<string, string> }>({
-  name: 'secrets',
-  defaults: { secrets: {} }
-})
+export const secretsStore = store('secrets', { secrets: {} as Record<string, string> })
 
 /** Discovered permission sets: keyId -> PermissionSet. */
-export const permissionsStore = new Store<{ perms: Record<string, PermissionSet> }>({
-  name: 'permissions',
-  defaults: { perms: {} }
-})
+export const permissionsStore = store('permissions', { perms: {} as Record<string, PermissionSet> })
 
 /** Local library: LE configs + presets. */
-export const libraryStore = new Store<{ leConfigs: LeConfig[]; presets: Preset[] }>({
-  name: 'library',
-  defaults: { leConfigs: [], presets: [] }
+export const libraryStore = store('library', {
+  leConfigs: [] as LeConfig[],
+  presets: [] as Preset[]
 })
 
 /** Cached copy of the remote community catalog, so the page works offline. */
-export const catalogStore = new Store<{
-  catalog: Catalog | null
-  fetchedAt: number
-  etag: string | null
-}>({
-  name: 'catalog',
-  defaults: { catalog: null, fetchedAt: 0, etag: null }
+export const catalogStore = store('catalog', {
+  catalog: null as Catalog | null,
+  fetchedAt: 0,
+  etag: null as string | null
 })
