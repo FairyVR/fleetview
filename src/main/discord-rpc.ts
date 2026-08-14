@@ -21,6 +21,7 @@ let sock: Socket | null = null
 let ready = false
 let queued: PresenceActivity | null = null
 let lastFailAt = 0
+let retry: NodeJS.Timeout | null = null
 let nonce = 0
 const startedAt = Date.now()
 
@@ -82,6 +83,8 @@ function attach(s: Socket): void {
       } else if (op === 1 && !ready && payload.includes('"READY"')) {
         ready = true
         if (queued) send(queued)
+      } else if (op === 1 && payload.includes('"ERROR"')) {
+        console.error('[discord-rpc]', payload)
       }
     }
   })
@@ -128,4 +131,14 @@ export function setPresence(activity: PresenceActivity | null): void {
   queued = activity
   if (!sock) connect(CLIENT_ID)
   else send(activity)
+  // Discord may not be running yet, or may restart, and the renderer only pushes on route
+  // changes — so retry in the background instead of waiting for the user to navigate.
+  if (!retry) {
+    retry = setInterval(() => {
+      if (!queued) return
+      if (!sock) connect(CLIENT_ID)
+      else if (ready) send(queued)
+    }, 30_000)
+    retry.unref()
+  }
 }
