@@ -21,22 +21,22 @@ Grab the file for your OS from [**Releases**](https://github.com/FairyVR/fleetvi
 | Your machine | Download |
 | --- | --- |
 | **Windows** 10/11 | `FleetView-x.y.z-Windows-x64.exe` |
-| **macOS** — Apple Silicon (M1–M4) | `FleetView-x.y.z-macOS-arm64.dmg` |
-| **macOS** — Intel | `FleetView-x.y.z-macOS-x64.dmg` |
-| **Linux** — x86_64 | `FleetView-x.y.z-Linux-x86_64.AppImage` |
+| **macOS**  Apple Silicon (M1–M4) | `FleetView-x.y.z-macOS-arm64.dmg` |
+| **macOS**  Intel | `FleetView-x.y.z-macOS-x64.dmg` |
+| **Linux**  x86_64 | `FleetView-x.y.z-Linux-x86_64.AppImage` |
 
-**Windows** — run the installer. It's **unsigned**, so SmartScreen will warn: click
+**Windows**  run the installer. It's **unsigned**, so SmartScreen will warn: click
 **More info → Run anyway**.
 
-**macOS** — open the dmg and drag FleetView to Applications. It's **unsigned**, so the first
-launch says *"FleetView is damaged and can't be opened."* It isn't — that's the download
+**macOS**  open the dmg and drag FleetView to Applications. It's **unsigned**, so the first
+launch says *"FleetView is damaged and can't be opened."* It isn't  that's the download
 quarantine flag. Clear it once in Terminal:
 
 ```sh
 xattr -cr /Applications/FleetView.app
 ```
 
-**Linux** — make it executable and run it: `chmod +x FleetView-*.AppImage && ./FleetView-*.AppImage`.
+**Linux**  make it executable and run it: `chmod +x FleetView-*.AppImage && ./FleetView-*.AppImage`.
 
 Then launch FleetView and add your Orion Drift API key under **Keys** (owner name is required).
 Keys are stored encrypted on your machine and never leave it.
@@ -48,10 +48,10 @@ Keys are stored encrypted on your machine and never leave it.
 | --- | --- |
 | **Base URL** | `https://api.oriondrift.net` |
 | **Auth** | `x-api-key: <key>` (**not** `Authorization: Bearer`) |
-| **Key format** | a JWT — three dot-separated segments |
+| **Key format** | a JWT  three dot-separated segments |
 
 These were recovered from the official dashboard's own public client bundles and confirmed
-with live probes — see [`docs/API-DISCOVERY.md`](docs/API-DISCOVERY.md) for the full method,
+with live probes - see [`docs/API-DISCOVERY.md`](docs/API-DISCOVERY.md) for the full method,
 the complete permission-scope list, and the structural gotchas.
 
 ## Why a registry, not hardcoded URLs
@@ -59,13 +59,13 @@ the complete permission-scope list, and the structural gotchas.
 Every endpoint lives as **data** in
 [`src/shared/registry/endpoints.ts`](src/shared/registry/endpoints.ts). Add one entry and the
 typed client, the Endpoint Explorer, the Dev Mode logger, and the generated Markdown docs all
-pick it up automatically — no per-endpoint plumbing.
+pick it up automatically, no per-endpoint plumbing.
 
 ## Permissions
 
 Orion Drift grants permissions **per fleet**, and `admin` on a fleet grants everything for
 that fleet. Since the API exposes no "my permissions" endpoint, FleetView treats permissions
-as *unknown* rather than denied when it can't discover them — the server stays the authority,
+as *unknown* rather than denied when it can't discover them, the server stays the authority,
 so the UI never falsely blocks an action you're actually allowed to perform.
 
 ## Architecture
