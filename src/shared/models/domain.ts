@@ -13,6 +13,8 @@ export interface Fleet {
   description?: string
   region?: string
   stationCount?: number
+  /** Stations currently reporting online. Undefined when the response carried no stations. */
+  onlineStationCount?: number
   permissionLevel?: string
   raw?: Record<string, unknown>
 }

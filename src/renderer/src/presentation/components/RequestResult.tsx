@@ -3,7 +3,7 @@ import { AlertTriangle, WifiOff, Lock, Clock, KeyRound } from 'lucide-react'
 import type { ApiResponse } from '@shared/models'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../state/useAppStore'
-import { Spinner, EmptyState, Button, Badge, ApiKeyHowTo } from './ui'
+import { SkeletonList, EmptyState, Button, Badge, ApiKeyHowTo } from './ui'
 
 /**
  * Renders the standard lifecycle for an endpoint call: loading / typed error / data.
@@ -26,7 +26,7 @@ export function RequestResult<T>({
   const keys = useAppStore((s) => s.keys)
   const navigate = useNavigate()
 
-  if (loading && !response) return <Spinner />
+  if (loading && !response) return <SkeletonList />
   if (!response) return <>{empty ?? <EmptyState title="No data yet" hint="Run the request to load data." />}</>
 
   if (response.error) {

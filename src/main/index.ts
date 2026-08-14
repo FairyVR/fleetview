@@ -4,6 +4,7 @@ import { appendFileSync } from 'node:fs'
 import { registerIpc } from './ipc'
 import { initUpdater } from './updater'
 import { settingsStore } from './stores'
+import { titleBarOverlayFor } from './title-bar'
 
 /** The only origin the window is ever allowed to load (dev server in dev, packaged files in prod). */
 const APP_ORIGIN = process.env.ELECTRON_RENDERER_URL ?? 'file://'
@@ -49,6 +50,15 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#0b0f17',
     title: 'FleetView',
+    // The app paints its own header; Windows keeps drawing the caption buttons over it.
+    // Windows only: macOS would put its traffic lights on top of the sidebar's logo, and
+    // the overlay API doesn't exist there.
+    ...(process.platform === 'win32'
+      ? {
+          titleBarStyle: 'hidden' as const,
+          titleBarOverlay: titleBarOverlayFor(settingsStore.get('theme'))
+        }
+      : {}),
     icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),

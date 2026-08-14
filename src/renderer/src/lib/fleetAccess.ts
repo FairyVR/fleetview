@@ -61,6 +61,18 @@ export function fleetAccess(scopes: string[] | undefined): FleetAccess {
   }
 }
 
+/**
+ * Can this key demonstrably *do* something in the fleet beyond reading it?
+ *
+ * Deliberately keeps `unknown` in: grants are probed, not declared, so an unprobed fleet
+ * is very often manageable. Dropping it here would hide fleets the user administers —
+ * the same mistake as denying an action on unknown permissions.
+ */
+export function isManageable(scopes: string[] | undefined): boolean {
+  const tier = fleetAccess(scopes).tier
+  return tier !== 'read'
+}
+
 /** Short human label for a tier — used on fleet cards and dropdown groups. */
 export function accessLabel(a: FleetAccess): string {
   if (a.tier === 'admin') return 'admin — full access'

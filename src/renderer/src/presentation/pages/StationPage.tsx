@@ -5,11 +5,12 @@ import { api } from '../../lib/api'
 import { useEndpoint } from '../../services/useEndpoint'
 import { useSelectionStore } from '../../state/useSelectionStore'
 import { useAppStore } from '../../state/useAppStore'
-import { PageHeader, Card, Button, Badge, StatusDot, EmptyState } from '../components/ui'
+import { PageHeader, Card, Button, Badge, StatusDot, EmptyState, FilterToggle } from '../components/ui'
 import { RequestResult } from '../components/RequestResult'
 import { PermissionGate } from '../components/PermissionGate'
 import { JsonEditor, validateJson } from '../components/JsonEditor'
 import { configDiff, CONFIG_WRITE_PARAMS } from '../../lib/stationConfig'
+import { mergeOfflineStations, visibleStations } from '../../lib/stationList'
 import { stationPlayerCounts } from '../../lib/presence'
 import { isOnline } from '../../lib/fleetOverview'
 import { regionLabel } from '../../lib/format'
@@ -37,6 +38,7 @@ function asStations(data: unknown, fleetId: string): Station[] {
 export default function StationPage() {
   const { fleetId, fleetName, stationId, selectStation } = useSelectionStore()
   const showIds = useAppStore((s) => s.settings?.showIds ?? false)
+  const [includeOffline, setIncludeOffline] = useState(false)
   const navigate = useNavigate()
   const { response, loading, run } = useEndpoint('fleet.stations', {
     params: fleetId ? { fleetId } : undefined,
@@ -51,6 +53,15 @@ export default function StationPage() {
     enabled: !!fleetId
   })
   const liveCounts = stationPlayerCounts(eventsResponse?.ok ? eventsResponse.data : null)
+  // Stations that exist but aren't running are absent from `fleet.stations` entirely, so the
+  // full roster has to come from the fleet detail — fetched only when the toggle asks for it.
+  const { response: detail } = useEndpoint('fleet.get', {
+    params: fleetId ? { fleetId } : undefined,
+    auto: !!fleetId && includeOffline,
+    enabled: !!fleetId && includeOffline
+  })
+  const knownStations =
+    includeOffline && detail?.ok && fleetId ? asStations(detail.data, fleetId) : []
 
   if (!fleetId) {
     return (
@@ -73,14 +84,47 @@ export default function StationPage() {
       <PageHeader
         title="Station Manager"
         subtitle={`Stations in ${fleetName ?? fleetId}. Select one to enable board, gamemode, events, and match modules.`}
-        actions={<Button onClick={() => { void run(); void runEvents() }}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh</Button>}
+        actions={
+          <>
+            {/* Never fail silently here: an empty list used to be indistinguishable from a
+                fleet-detail request the key isn't allowed to make. */}
+            {includeOffline && detail && !detail.ok && (
+              <Badge tone="bad">
+                Offline list unavailable — {detail.error?.message ?? `HTTP ${detail.status}`}
+              </Badge>
+            )}
+            <FilterToggle on={includeOffline} onClick={() => setIncludeOffline((v) => !v)}>
+              Include offline
+            </FilterToggle>
+            <Button onClick={() => { void run(); void runEvents() }}>
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            </Button>
+          </>
+        }
       />
       <RequestResult response={response} loading={loading} onRetry={() => void run()}>
         {(raw) => {
-          const stations = asStations(raw, fleetId).map((s) => ({
+          const active = asStations(raw, fleetId).map((s) => ({
             ...s,
             playerCount: liveCounts.get(s.id) ?? s.playerCount
           }))
+          const stations = visibleStations(
+            mergeOfflineStations(active, knownStations),
+            includeOffline
+          )
+          if (!stations.length) {
+            return (
+              <EmptyState
+                icon={<Server size={22} />}
+                title={includeOffline ? 'No stations in this fleet' : 'No stations online'}
+                hint={
+                  includeOffline
+                    ? 'This fleet has no stations the key can see.'
+                    : 'Turn on “Include offline” to show stations that exist but are not running.'
+                }
+              />
+            )
+          }
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {stations.map((s) => (

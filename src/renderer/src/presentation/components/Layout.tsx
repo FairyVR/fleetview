@@ -10,6 +10,7 @@ import { useSelectionStore, type FleetOption } from '../../state/useSelectionSto
 import { useEndpoint } from '../../services/useEndpoint'
 import { fleetAccess, sortByAccess } from '../../lib/fleetAccess'
 import { StatusDot } from './ui'
+import { Toaster } from './Toaster'
 import type { KeyHealth } from '@shared/models'
 
 function healthTone(h: KeyHealth): 'good' | 'warn' | 'bad' | 'idle' {
@@ -180,7 +181,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="grid grid-cols-[248px_1fr] h-screen">
       {/* Sidebar */}
       <aside className="flex flex-col border-r border-[var(--border-soft)] bg-[var(--bg-elev)] overflow-hidden">
-        <div className="flex items-center gap-2.5 px-4 h-14 border-b border-[var(--border-soft)] shrink-0">
+        <div className="drag flex items-center gap-2.5 px-4 h-14 border-b border-[var(--border-soft)] shrink-0">
           <img src={badge} alt="Orion Drift founder badge" className="w-8 h-8 object-contain" />
           <div className="leading-tight">
             <div className="font-semibold tracking-tight">FleetView</div>
@@ -224,7 +225,9 @@ export function Layout({ children }: { children: ReactNode }) {
 
       {/* Main */}
       <div className="flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between px-5 h-14 border-b border-[var(--border-soft)] bg-[var(--bg-elev)]/60 shrink-0">
+        {/* pr-[150px] keeps the switchers clear of the Windows caption buttons, which are
+            painted over this strip. */}
+        <header className="drag flex items-center justify-between pl-5 pr-[150px] h-14 border-b border-[var(--border-soft)] bg-[var(--bg-elev)]/60 shrink-0">
           <div className="flex items-center gap-2 text-[12px] text-[var(--text-faint)] mono truncate">
             <span
               className="w-1.5 h-1.5 rounded-full"
@@ -233,7 +236,7 @@ export function Layout({ children }: { children: ReactNode }) {
             {baseUrl || 'no base URL set'}
             {placeholderBase && <span className="text-[var(--warn)]">· not set — configure in Settings</span>}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="no-drag flex items-center gap-2 shrink-0">
             <ContextSwitcher />
             <KeySwitcher />
           </div>
@@ -242,6 +245,7 @@ export function Layout({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+      <Toaster />
     </div>
   )
 }

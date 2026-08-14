@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { accessLabel, fleetAccess, sortByAccess } from '../src/renderer/src/lib/fleetAccess'
+import {
+  accessLabel,
+  fleetAccess,
+  isManageable,
+  sortByAccess
+} from '../src/renderer/src/lib/fleetAccess'
+
+describe('isManageable', () => {
+  it('keeps admin and elevated fleets', () => {
+    expect(isManageable(['admin'])).toBe(true)
+    expect(isManageable(['fleet:read', 'station_config:write'])).toBe(true)
+    expect(isManageable(['fleet:read', 'user_ban:write'])).toBe(true)
+  })
+
+  it('drops fleets probed down to baseline reads', () => {
+    expect(isManageable(['fleet:read', 'station:read'])).toBe(false)
+    expect(isManageable([])).toBe(false)
+  })
+
+  it('keeps unprobed fleets — an unknown grant is not a denial', () => {
+    expect(isManageable(undefined)).toBe(true)
+  })
+})
 
 describe('fleetAccess', () => {
   it('an unprobed fleet is unknown, never denied', () => {

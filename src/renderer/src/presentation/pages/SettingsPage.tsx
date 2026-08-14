@@ -3,6 +3,7 @@ import { Save } from 'lucide-react'
 import { normalizeBaseUrl } from '@shared/registry'
 import { THEMES, DISCORD_PRIVACY, type ThemeId, type DiscordPrivacy } from '@shared/ipc'
 import { useAppStore } from '../../state/useAppStore'
+import { toast } from '../../state/useToastStore'
 import { PageHeader, Card, Button, Field, Badge } from '../components/ui'
 
 export default function SettingsPage() {
@@ -15,8 +16,16 @@ export default function SettingsPage() {
 
   async function save() {
     if (!draft) return
-    await updateSettings(draft)
+    try {
+      await updateSettings(draft)
+    } catch (e) {
+      // The main process rejects a bad base URL or privacy level — say so instead of
+      // flashing "Saved" over a write that never landed.
+      toast(e instanceof Error ? e.message : 'Could not save settings.', 'bad')
+      return
+    }
     setSaved(true)
+    toast('Settings saved')
     setTimeout(() => setSaved(false), 1500)
   }
 

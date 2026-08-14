@@ -1,4 +1,5 @@
 import type { ReactNode, ButtonHTMLAttributes } from 'react'
+import { Check, Circle } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { prettyJson } from '../../lib/format'
 
@@ -20,6 +21,32 @@ export function Button({
       )}
       {...props}
     />
+  )
+}
+
+/** A filter switch. Styled as a chip so it reads as a filter, not a button. */
+export function FilterToggle({
+  on,
+  onClick,
+  children
+}: {
+  on: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={on}
+      className={cn('btn', on && 'border-[var(--accent-2)] text-[var(--text)] bg-[var(--bg-elev-2)]')}
+    >
+      {on ? (
+        <Check size={13} className="text-[var(--accent)]" />
+      ) : (
+        <Circle size={13} className="text-[var(--text-faint)]" />
+      )}
+      {children}
+    </button>
   )
 }
 
@@ -105,6 +132,31 @@ export function EmptyState({
       <div className="text-[15px] font-medium">{title}</div>
       {hint && <div className="text-[13px] text-[var(--text-dim)] mt-1.5 max-w-md">{hint}</div>}
       {action && <div className="mt-4">{action}</div>}
+    </div>
+  )
+}
+
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-md bg-[var(--bg-elev-2)]', className)} />
+}
+
+/**
+ * Placeholder rows shaped like the card lists every page renders, so content arriving
+ * doesn't shift the layout the way swapping out a centred spinner does.
+ */
+export function SkeletonList({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-2.5" aria-busy="true" aria-label="Loading">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="card p-4 flex items-center gap-4" style={{ opacity: 1 - i * 0.12 }}>
+          <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3.5" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+          <Skeleton className="w-16 h-6 rounded-full shrink-0" />
+        </div>
+      ))}
     </div>
   )
 }

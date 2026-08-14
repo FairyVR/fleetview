@@ -7,6 +7,7 @@ import {
   type PresenceActivity
 } from '@shared/ipc'
 import { setPresence } from './discord-rpc'
+import { titleBarOverlayFor } from './title-bar'
 import { settingsStore } from './stores'
 import { isEncryptionAvailable } from './secure-storage'
 import { executeRequest } from './api-client'
@@ -129,6 +130,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   h(CHANNELS.settingsSet, (_e, patch: Partial<AppSettings>) => {
     const clean = sanitizeSettingsPatch(patch ?? {})
     for (const [k, v] of Object.entries(clean)) settingsStore.set(k as keyof AppSettings, v as never)
+    // Windows owns the caption buttons, so a theme switch has to be pushed to them here —
+    // the renderer's data-theme swap can't reach that strip.
+    if (clean.theme) getWindow()?.setTitleBarOverlay?.(titleBarOverlayFor(clean.theme))
     return readSettings()
   })
 

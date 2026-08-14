@@ -155,11 +155,50 @@ body {
   background-clip: padding-box;
 }
 
+/* The window is frameless: this is what the user grabs to move it. Anything clickable
+   inside a drag region has to opt back out, or the click never reaches it. */
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* One visible focus treatment for everything reachable by keyboard. */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@keyframes fv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 /* Reusable component classes (kept small; utilities do the rest). */
 .card {
   background: var(--bg-elev);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
+}
+/* Opt-in for cards that are actually clickable — plain cards stay flat. */
+.card-interactive {
+  transition: border-color 0.12s, background 0.12s, transform 0.12s;
+}
+.card-interactive:hover {
+  border-color: var(--border);
+  background: var(--bg-elev-2);
+  transform: translateY(-1px);
+}
+/* Rows in the list/grid idiom, which have no card of their own. */
+.row-hover {
+  transition: background 0.12s;
+}
+.row-hover:hover {
+  background: color-mix(in srgb, var(--bg-elev-2) 60%, transparent);
 }
 .btn {
   display: inline-flex;
@@ -177,6 +216,10 @@ body {
 }
 .btn:hover {
   border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--bg-elev-2) 70%, var(--accent-2) 8%);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .btn:disabled {
   opacity: 0.45;
